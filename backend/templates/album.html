@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChetMedia | Альбом</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0F0F11; }
+        .lightbox { display: none; background-color: rgba(10, 10, 12, 0.95); }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen p-6">
+
+    <div class="container mx-auto max-w-6xl">
+        <div class="mb-6">
+            <a href="/" class="text-xs text-gray-500 hover:text-blue-400 transition-colors inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-left"></i> Вернуться на панель
+            </a>
+        </div>
+
+        <div class="border-b border-gray-900 pb-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-images text-blue-500"></i> Фотоальбом
+                </h1>
+                <p class="text-gray-500 text-xs mt-1"><i class="fa-solid fa-clock"></i> Удаление всего альбома: <span class="text-gray-400 font-medium">{{ expires_at }}</span></p>
+            </div>
+            <span class="bg-blue-600/10 text-blue-400 border border-blue-900/30 text-xs px-3 py-1.5 rounded-xl font-medium">
+                <i class="fa-solid fa-images mr-1"></i> Снимков: {{ photos|length }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {% for photo in photos %}
+            <div class="aspect-square bg-gray-900 border border-gray-900 rounded-xl overflow-hidden cursor-pointer hover:border-blue-500/40 hover:scale-[1.01] transition-all duration-200 shadow-md group relative" onclick="openLightbox({{ loop.index0 }})">
+                <img src="/media/{{ photo.id }}" class="w-full h-full object-cover" alt="Photo">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <i class="fa-solid fa-magnifying-glass-plus text-xl text-white/80"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="lightbox" class="lightbox fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm select-none" onclick="closeLightbox()">
+        <button class="absolute top-6 right-6 text-gray-400 hover:text-white text-2xl cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+        
+        <button class="absolute left-6 text-gray-400 hover:text-white text-3xl p-4 cursor-pointer hidden sm:block" onclick="prevPhoto(event)"><i class="fa-solid fa-chevron-left"></i></button>
+        
+        <img id="lightboxImg" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" src="" alt="Zoomed" onclick="event.stopPropagation()">
+        
+        <button class="absolute right-6 text-gray-400 hover:text-white text-3xl p-4 cursor-pointer hidden sm:block" onclick="nextPhoto(event)"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+
+    <script>
+        // Парсим массив путей картинок из шаблона Jinja2
+        const photos = [
+            {% for photo in photos %}
+                "/media/{{ photo.id }}",
+            {% endfor %}
+        ];
+        
+        let currentIndex = 0;
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+
+        function openLightbox(index) {
+            currentIndex = index;
+            lightboxImg.src = photos[currentIndex];
+            lightbox.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Запрещаем скролл страницы
+        }
+
+        function closeLightbox() {
+            lightbox.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function nextPhoto(e) {
+            e.stopPropagation();
+            currentIndex = (currentIndex + 1) % photos.length;
+            lightboxImg.src = photos[currentIndex];
+        }
+
+        function prevPhoto(e) {
+            e.stopPropagation();
+            currentIndex = (currentIndex - 1 + photos.length) % photos.length;
+            lightboxImg.src = photos[currentIndex];
+        }
+
+        // Управление с клавиатуры (стрелочки и Esc)
+        document.addEventListener('keydown', (e) => {
+            if (lightbox.style.display === 'flex') {
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowRight') nextPhoto(e);
+                if (e.key === 'ArrowLeft') prevPhoto(e);
+            }
+        });
+    </script>
+</body>
+</html>

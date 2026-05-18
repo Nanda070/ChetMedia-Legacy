@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChetMedia | Панель управления</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0F0F11; }
+        .blur-gradient { background: linear-gradient(135deg, rgba(0,122,204,0.12) 0%, rgba(114,137,218,0.12) 100%); }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen font-sans">
+
+    <div class="fixed top-0 left-0 w-full h-full blur-gradient -z-10 pointer-events-none"></div>
+
+    <div class="container mx-auto max-w-5xl px-4 py-8">
+        
+        <header class="flex justify-between items-center border-b border-gray-900 pb-6 mb-8">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-lg shadow-blue-600/30">
+                    <i class="fa-solid fa-photo-film text-xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">ChetMedia</h1>
+            </div>
+            <div id="userInfo" class="hidden flex items-center gap-4 bg-gray-900/40 border border-gray-800/60 px-4 py-2 rounded-xl">
+                <span id="username" class="font-medium text-gray-300"></span>
+                <i class="fa-solid fa-circle-user text-blue-500 text-lg"></i>
+            </div>
+        </header>
+
+        <div id="loginScreen" class="hidden flex flex-col items-center justify-center py-20">
+            <div class="bg-gray-950/80 border border-gray-900 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl backdrop-blur-md">
+                <h2 class="text-3xl font-extrabold mb-3 text-white">Добро пожаловать</h2>
+                <p class="text-gray-400 text-sm mb-8">Для загрузки медиа и управления своими файлами авторизуйтесь через Discord</p>
+                <a href="/auth/login" class="inline-flex items-center justify-center gap-3 w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg hover:scale-[1.02] cursor-pointer">
+                    <i class="fa-brands fa-discord text-xl"></i> Войти через Discord
+                </a>
+            </div>
+        </div>
+
+        <div id="dashboardScreen" class="hidden space-y-10">
+            
+            <div id="albumSuccessAlert" class="hidden bg-emerald-950/30 border border-emerald-900/50 p-5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h4 class="text-emerald-400 font-bold text-sm flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> Альбом успешно создан!</h4>
+                    <p class="text-gray-400 text-xs mt-0.5">Все фотографии упакованы в одну общую ссылку.</p>
+                </div>
+                <button id="albumAlertBtn" onclick="" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2 px-4 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-copy"></i> Скопировать ссылку на альбом
+                </button>
+            </div>
+            
+            <section class="bg-gray-950/40 border border-gray-900 rounded-2xl p-6 backdrop-blur-md">
+                <h3 class="text-md font-semibold mb-4 flex items-center gap-2 text-gray-300"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Быстрая загрузка</h3>
+                
+                <div id="dropZone" class="border-2 border-dashed border-gray-800 hover:border-blue-500/40 bg-gray-900/10 hover:bg-blue-500/5 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 group">
+                    <input type="file" id="fileInput" class="hidden" accept="image/*,video/*" multiple>
+                    <div class="space-y-3">
+                        <div class="text-4xl text-gray-700 group-hover:text-blue-500 transition-colors duration-200">
+                            <i class="fa-solid fa-images"></i>
+                        </div>
+                        <p class="text-gray-300 font-medium text-sm">Перетащите медиа сюда или <span class="text-blue-500 group-hover:underline">выберите файлы</span></p>
+                        <p class="text-gray-500 text-xs">Одиночное видео/фото ИЛИ пачка фотографий для создания Альбома</p>
+                    </div>
+                </div>
+
+                <div id="uploadProgress" class="hidden mt-4 space-y-2">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span id="uploadFileName" class="truncate max-w-[80%]"></span>
+                        <span id="uploadPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden">
+                        <div id="progressBar" class="bg-blue-500 h-2 w-0 transition-all duration-100 rounded-full shadow-lg"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 class="text-md font-semibold mb-4 flex items-center gap-2 text-gray-300"><i class="fa-solid fa-folder-open text-amber-500"></i> Хранилище контента</h3>
+                <div id="mediaGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                <div id="emptyState" class="hidden text-center py-16 bg-gray-950/10 border border-gray-900 border-dashed rounded-xl">
+                    <i class="fa-solid fa-inbox text-4xl text-gray-800 mb-3"></i>
+                    <p class="text-gray-500 text-xs">Тут пока пусто. Загрузи что-нибудь!</p>
+                </div>
+            </section>
+        </div>
+        <footer class="mt-16 border-t border-gray-950 pt-6 text-center text-xs text-gray-600 space-y-2 pb-4">
+            <p>© 2026 ChetTeam. Разработано сообществом 404 : Server Not Found.</p>
+            <p>
+                <a href="https://discord.gg/cheterin" target="_blank" class="inline-flex items-center gap-1.5 text-gray-500 hover:text-[#5865F2] hover:border-[#5865F2]/30 transition-all duration-200 font-medium bg-gray-950/40 border border-gray-900 px-3 py-1.5 rounded-lg cursor-pointer">
+                    <i class="fa-brands fa-discord text-sm"></i> Обратная связь и поддержка
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        async function checkAuth() {
+            try {
+                const res = await fetch('/users/me');
+                if (res.ok) {
+                    const user = await res.json();
+                    document.getElementById('username').innerText = user.username;
+                    document.getElementById('userInfo').classList.remove('hidden');
+                    document.getElementById('dashboardScreen').classList.remove('hidden');
+                    loadGallery();
+                } else {
+                    document.getElementById('loginScreen').classList.remove('hidden');
+                }
+            } catch {
+                document.getElementById('loginScreen').classList.remove('hidden');
+            }
+        }
+
+        async function loadGallery() {
+            const res = await fetch('/api/my-media');
+            if (!res.ok) return;
+            const files = await res.json();
+            
+            const grid = document.getElementById('mediaGrid');
+            const empty = document.getElementById('emptyState');
+            grid.innerHTML = '';
+
+            if (files.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            // Защита от дублей: если фотки принадлежат одному альбому, выведем в галерее только одну карточку альбома!
+            const renderedAlbums = [];
+
+            files.forEach(file => {
+                if (file.album_id) {
+                    if (renderedAlbums.includes(file.album_id)) return; // Уже вывели эту папку
+                    renderedAlbums.push(file.album_id);
+                }
+
+                const card = document.createElement('div');
+                card.className = "bg-gray-950/80 border border-gray-900 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between";
+                
+                let statusBadge = '';
+                if (file.status === 'processing') {
+                    statusBadge = `<span class="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1"><i class="fa-solid fa-spinner animate-spin"></i> Сжатие...</span>`;
+                } else {
+                    statusBadge = `<span class="bg-emerald-500/10 text-emerald-400 text-[11px] px-2.5 py-1 rounded-full font-medium">Готово</span>`;
+                }
+
+                // Кастомизируем внешний вид карточки для Альбома
+                let icon = 'fa-video text-blue-500';
+                let typeName = 'Видео';
+                let displayTitle = file.filename;
+
+                if (file.album_id) {
+                    icon = 'fa-images text-teal-400';
+                    typeName = 'Фотоальбом';
+                    displayTitle = `Альбом [id: ${file.album_id}]`;
+                } else if (file.content_type.startsWith('image/')) {
+                    icon = 'fa-image text-purple-500';
+                    typeName = 'Фото';
+                }
+
+                card.innerHTML = `
+                    <div class="p-5 space-y-4">
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <i class="fa-solid ${icon} shrink-0 text-md"></i>
+                                <span class="font-semibold text-sm text-gray-200 truncate" title="${displayTitle}">${displayTitle}</span>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-[11px] text-gray-500 space-y-1">
+                            <div><i class="fa-solid fa-shapes mr-1"></i> Тип: ${typeName}</div>
+                            <div><i class="fa-solid fa-clock mr-1"></i> Сгорает: ${file.expires_at}</div>
+                            ${file.duration ? `<div><i class="fa-solid fa-hourglass-half mr-1"></i> Длина: ${file.duration} сек</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="bg-gray-900/20 px-5 py-3 border-t border-gray-900 flex gap-2">
+                        <button onclick="copyLink('${file.url}', this)" class="flex-grow bg-gray-900 hover:bg-gray-800 border border-gray-800 text-xs text-gray-300 font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-link"></i> Копировать ссылку
+                        </button>
+                        <button onclick="deleteFile('${file.id}', ${file.album_id ? true : false})" class="bg-red-950/20 hover:bg-red-900/30 border border-red-950 text-red-400 p-2 rounded-lg text-xs transition-colors cursor-pointer" title="${file.album_id ? 'Удалить весь альбом' : 'Удалить файл'}">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function copyLink(url, btn) {
+            navigator.clipboard.writeText(url);
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Готово!`;
+            setTimeout(() => btn.innerHTML = origHTML, 2000);
+        }
+
+        async function deleteFile(id, isAlbum) {
+            const msg = isAlbum ? "Удалить ВЕСЬ альбом и все фотки в нем навсегда?" : "Удалить файл навсегда?";
+            if (!confirm(msg)) return;
+            const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                document.getElementById('albumSuccessAlert').classList.add('hidden');
+                loadGallery();
+            }
+        }
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-500/5'); };
+        dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-blue-500/5'); };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-500/5');
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
+        };
+        fileInput.onchange = () => { if (fileInput.files.length) handleUpload(fileInput.files); };
+
+        function handleUpload(fileList) {
+            const progressContainer = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const percentLabel = document.getElementById('uploadPercent');
+            const alertBox = document.getElementById('albumSuccessAlert');
+            
+            alertBox.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+
+            // КЛЮЧЕВАЯ ЛОГИКА: Одиночный файл или Пакет?
+            if (fileList.length === 1) {
+                // Работает стандартный роут одиночки
+                document.getElementById('uploadFileName').innerText = fileList[0].name;
+                formData.append('file', fileList[0]);
+                xhr.open('POST', '/upload', true);
+            } else {
+                // Массовая загрузка (Альбом)
+                document.getElementById('uploadFileName').innerText = `Упаковка альбома: ${fileList.length} фото...`;
+                
+                // Проверяем броню: все ли файлы — фото
+                for (let i = 0; i < fileList.length; i++) {
+                    if (!fileList[i].type.startsWith('image/')) {
+                        alert('Массовая загрузка поддерживает ТОЛЬКО фотографии!');
+                        progressContainer.classList.add('hidden');
+                        return;
+                    }
+                    formData.append('files', fileList[i]); // Складываем всё под ключом 'files'
+                }
+                xhr.open('POST', '/upload/album', true);
+            }
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    percentLabel.innerText = `${percent}%`;
+                }
+            };
+
+            xhr.onload = () => {
+                setTimeout(() => progressContainer.classList.add('hidden'), 800);
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    loadGallery();
+                    
+                    // Если создался альбом - выведем верхнее сочное уведомление
+                    if (fileList.length > 1 && response.url) {
+                        alertBox.classList.remove('hidden');
+                        document.getElementById('albumAlertBtn').onclick = function() {
+                            navigator.clipboard.writeText(response.url);
+                            this.innerHTML = `<i class="fa-solid fa-check"></i> Альбом скопирован!`;
+                            setTimeout(() => this.innerHTML = `<i class="fa-solid fa-copy"></i> Скопировать ссылку на альбом`, 2000);
+                        };
+                    }
+
+                    // Если это одиночное видео, мониторим статус сжатия в фоне
+                    if (fileList.length === 1 && fileList[0].type.startsWith('video/')) {
+                        const timer = setInterval(async () => {
+                            await loadGallery();
+                            if (!document.body.innerHTML.includes('animate-spin')) clearInterval(timer);
+                        }, 3000);
+                    }
+                } else {
+                    alert('Ошибка загрузки файлов на сервер');
+                }
+            };
+            xhr.send(formData);
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>
