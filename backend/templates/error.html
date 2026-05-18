@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChetMedia | Упс, что-то пошло не так</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0F0F11; }
+        /* Динамический градиент: красный для ошибок, синий/желтый для остального */
+        .blur-gradient-red { background: linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(114,137,218,0.05) 100%); }
+        .blur-gradient-amber { background: linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(114,137,218,0.05) 100%); }
+        .blur-gradient-blue { background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(114,137,218,0.05) 100%); }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen font-sans flex flex-col justify-between p-6">
+
+    <div class="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none 
+        {% if status_code == 404 %}blur-gradient-blue
+        {% elif status_code == 403 %}blur-gradient-amber
+        {% else %}blur-gradient-red{% endif %}">
+    </div>
+
+    <div></div>
+
+    <div class="container mx-auto max-w-md text-center">
+        <div class="bg-gray-950/80 border border-gray-950 p-8 rounded-2xl shadow-2xl backdrop-blur-md relative overflow-hidden">
+            
+            <div class="absolute -top-6 -right-4 text-8xl font-black text-gray-900/40 select-none font-mono">
+                {{ status_code }}
+            </div>
+
+            <div class="inline-flex p-4 rounded-2xl mb-5 shadow-lg
+                {% if status_code == 404 %}bg-blue-600/10 text-blue-500 shadow-blue-600/10
+                {% elif status_code == 403 %}bg-amber-500/10 text-amber-400 shadow-amber-500/10
+                {% else %}bg-red-600/10 text-red-500 shadow-red-600/10{% endif %}">
+                <i class="fa-solid {{ icon }} text-3xl"></i>
+            </div>
+
+            <h2 class="text-xl font-bold text-white mb-2">
+                {% if status_code == 404 %}Контент не найден
+                {% elif status_code == 403 %}Доступ ограничен
+                {% else %}Произошла ошибка
+                {% endif %}
+            </h2>
+
+            <p class="text-gray-400 text-sm mb-8 leading-relaxed px-2">
+                {{ detail }}
+            </p>
+
+            <a href="/" class="inline-flex items-center justify-center gap-2 w-full text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:scale-[1.02] cursor-pointer
+                {% if status_code == 404 %}bg-blue-600 hover:bg-blue-500 shadow-blue-600/20
+                {% elif status_code == 403 %}bg-amber-600 hover:bg-amber-500 shadow-amber-500/20
+                {% else %}bg-red-600 hover:bg-red-500 shadow-red-600/20{% endif %}">
+                <i class="fa-solid fa-house text-sm"></i> Вернуться на главную
+            </a>
+        </div>
+    </div>
+
+    <footer class="text-center text-xs text-gray-600 pt-6">
+        <p>© 2026 ChetTeam. Система контроля исключений.</p>
+    </footer>
+
+</body>
+</html>

@@ -3,14 +3,13 @@ version: '3.8'
 services:
   web:
     build: .
+    container_name: backend_web_1
     ports:
       - "8000:8000"
     volumes:
-      # Пробрасываем папку uploads и базу данных на реальный диск сервера для вечного хранения
-      - ./uploads:/workspace/uploads
-      - ./chetmedia.db:/workspace/chetmedia.db
-    environment:
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
-      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
-      - JWT_SECRET=${JWT_SECRET}
+      # Монтируем базу иuploads наружу на хост, чтобы данные были бессмертными
+      - ./uploads:/app/uploads
+      - ./chetmedia.db:/app/chetmedia.db
+    env_file:
+      - .env
     restart: always

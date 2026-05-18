@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime, timezone
 
@@ -15,13 +15,20 @@ class User(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     media = relationship("Media", back_populates="owner")
     albums = relationship("Album", back_populates="owner")
+    is_admin = Column(Boolean, default=False)
+    
+    is_blocked = Column(Boolean, default=False)
 
 class Album(Base):
     __tablename__ = "albums"
     __table_args__ = {'extend_existing': True}
     
-    id = Column(String, primary_key=True, index=True) # ID альбома (например: a7b8c9d0)
+    id = Column(String, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"))
+    
+    # ВОТ ЭТУ СТРОКУ ДОБАВЛЯЕМ:
+    name = Column(String, default="Без названия")
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime)
     
@@ -58,3 +65,4 @@ def get_db():
         yield db
     finally:
         db.close()
+
