@@ -448,6 +448,20 @@ async def view_album(request: Request, album_id: str, db: Session = Depends(get_
         context={"request": request, "photos": album.media, "expires_at": album.expires_at.strftime("%Y-%m-%d %H:%M")}
     )
 
+@app.get("/auth/logout")
+async def logout():
+    """Удаляет куку с токеном и разлогинивает пользователя"""
+    response = RedirectResponse(url="/")
+    # Обязательно указываем те же параметры (secure, httponly, samesite), 
+    # с которыми кука создавалась, чтобы браузер точно её удалил
+    response.delete_cookie(
+        "access_token",
+        secure=True,
+        httponly=True,
+        samesite="lax"
+    )
+    return response
+
 @app.get("/api/my-media")
 def get_my_media(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     media_files = db.query(Media).filter(Media.user_id == current_user.id, Media.album_id == None).order_by(Media.created_at.desc()).all()
