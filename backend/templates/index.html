@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChetMedia | Панель управления</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        
         body { background-color: #0F0F11; }
         .blur-gradient { background: linear-gradient(135deg, rgba(0,122,204,0.12) 0%, rgba(114,137,218,0.12) 100%); }
         @keyframes shimmer {
@@ -35,7 +34,8 @@
                 <span id="username" class="font-medium text-gray-300"></span>
                 <i class="fa-solid fa-circle-user text-blue-500 text-lg"></i>
                 
-                <div class="h-4 w-px bg-gray-800 mx-1"></div> <a href="/auth/logout" class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" title="Выйти из аккаунта">
+                <div class="h-4 w-px bg-gray-800 mx-1"></div> 
+                <a href="/auth/logout" class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" title="Выйти из аккаунта">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </a>
             </div>
@@ -156,8 +156,25 @@
             </section>
         </div>
 
+        <div id="bulkActionsBar" class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-xl border border-gray-700 p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] items-center gap-4 z-50 transition-all duration-300 translate-y-10 opacity-0">
+            <span id="selectionCount" class="text-sm font-bold text-white px-2">Выбрано: 0</span>
+            <div class="h-6 w-px bg-gray-700"></div>
+            
+            <button id="bulkAlbumBtn" onclick="bulkCreateAlbum()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-900/20">
+                <i class="fa-solid fa-folder-plus"></i> В новый альбом
+            </button>
+            
+            <button onclick="bulkDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-red-900/20">
+                <i class="fa-solid fa-trash-can"></i> Удалить
+            </button>
+            
+            <button onclick="clearSelection()" class="text-gray-400 hover:text-white px-2 ml-1 cursor-pointer" title="Сбросить выбор">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
         <footer class="mt-16 border-t border-gray-950 pt-6 text-center text-xs text-gray-600 space-y-2 pb-4">
-            <p>© 2026 ChetTeam. Разработано сообществом 404 : Server Not Found.</p>
+            <p>© 2026 ChetTeam. Разработано сообществом 404 : Server Not Found (Флори Лох).</p>
             <p>
                 <a href="https://discord.gg/cheterin" target="_blank" class="inline-flex items-center gap-1.5 text-gray-500 hover:text-[#5865F2] hover:border-[#5865F2]/30 transition-all duration-200 font-medium bg-gray-950/40 border border-gray-900 px-3 py-1.5 rounded-lg cursor-pointer">
                     <i class="fa-brands fa-discord text-sm"></i> Поддержка
@@ -169,6 +186,7 @@
     <script>
         let currentAlbumId = null;
         let currentAlbumName = null;
+        let selectedItems = new Map(); // Хранит ID и тип выбранных файлов
 
         async function checkAuth() {
             try {
@@ -216,18 +234,21 @@
 
             items.forEach(item => {
                 const card = document.createElement('div');
+                const isChecked = selectedItems.has(item.id) ? 'checked' : '';
                 
                 if (item.type === 'album') {
-                    // КАРТОЧКА АЛЬБОМА (Оставляем твой стильный вариант)
-                    card.className = "bg-gray-950/80 border border-teal-900/30 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 space-y-4 hover:border-teal-500/20 transition-all duration-300";
+                    // КАРТОЧКА АЛЬБОМА С ЧЕКБОКСОМ
+                    card.className = "relative bg-gray-950/80 border border-teal-900/30 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between p-5 space-y-4 hover:border-teal-500/20 transition-all duration-300";
                     card.innerHTML = `
+                        <div class="absolute top-4 right-4 z-20">
+                            <input type="checkbox" onchange="toggleSelection('${item.id}', '${item.type}', this.checked)" class="w-5 h-5 rounded border-gray-700 bg-gray-900/80 text-blue-500 cursor-pointer shadow-xl accent-blue-500" ${isChecked}>
+                        </div>
                         <div class="space-y-3">
                             <div class="flex justify-between items-start gap-2">
                                 <div class="flex items-center gap-2 min-w-0">
                                     <i class="fa-solid fa-folder-open text-teal-400 text-lg shrink-0"></i>
                                     <span class="font-bold text-sm text-gray-200 truncate" title="${item.name}">${item.name}</span>
                                 </div>
-                                <span class="bg-teal-500/10 text-teal-400 text-[10px] px-2 py-0.5 rounded-md font-mono">Альбом</span>
                             </div>
                             <div class="text-[11px] text-gray-500 space-y-0.5">
                                 <div><i class="fa-solid fa-images mr-1"></i> Загружено снимков: ${item.file_count}</div>
@@ -236,7 +257,7 @@
                         </div>
                         <div class="pt-2 border-t border-gray-900/60 flex gap-2">
                             <button onclick="enterAlbumContext('${item.id}', '${item.name}')" class="flex-grow bg-teal-950/30 hover:bg-teal-900/30 border border-teal-900/50 text-xs text-teal-400 font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-                                <i class="fa-solid fa-arrow-right-to-bracket"></i> Открыть и шить
+                                <i class="fa-solid fa-arrow-right-to-bracket"></i> Открыть
                             </button>
                             <button onclick="copyLink('${item.url}', this)" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 p-2 rounded-lg text-xs text-gray-400 transition-colors cursor-pointer" title="Копировать ссылку папки">
                                 <i class="fa-solid fa-link"></i>
@@ -246,16 +267,20 @@
                             </button>
                         </div>`;
                 } else {
-                    // УЛУЧШЕННАЯ КАРТОЧКА МЕДИАФАЙЛА (ВИДЕО / ФОТО)
-                    card.className = "bg-gray-950/50 border border-gray-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between group hover:border-gray-800 transition-all duration-300";
+                    // КАРТОЧКА МЕДИАФАЙЛА С ЧЕКБОКСОМ
+                    card.className = "relative bg-gray-950/50 border border-gray-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between group hover:border-gray-800 transition-all duration-300";
                     
                     const isVideo = item.content_type.startsWith('video/');
                     let mediaPreview = '';
                     let statusBadge = '';
 
+                    const checkboxHtml = `
+                        <div class="absolute top-3 left-3 z-30">
+                            <input type="checkbox" onchange="toggleSelection('${item.id}', '${item.type}', this.checked)" class="w-5 h-5 rounded border-gray-700 bg-gray-900/80 text-blue-500 cursor-pointer shadow-xl accent-blue-500" ${isChecked}>
+                        </div>`;
+
                     if (isVideo) {
                         if (item.status === 'processing') {
-                            // Индикатор сжатия FFmpeg с эффектом сканирования (Shimmer)
                             mediaPreview = `
                                 <div class="h-44 w-full bg-gray-900/30 flex flex-col items-center justify-center relative overflow-hidden border-b border-gray-900/60">
                                     <div class="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/5 to-transparent -translate-x-full animate-shimmer"></div>
@@ -273,13 +298,12 @@
                                 </div>`;
                             statusBadge = `<span class="bg-red-500/10 text-red-400 text-[10px] px-2 py-0.5 rounded-md border border-red-500/20 font-medium">Ошибка</span>`;
                         } else {
-                            // ЖИВОЙ ПЛЕЕР: автозапуск без звука при наведении, остановка при уходе курсора
                             mediaPreview = `
-                                <div class="h-44 w-full bg-black relative overflow-hidden border-b border-gray-900/60 cursor-pointer group/vid" onclick="window.open('${item.url}', '_blank')">
+                                <div class="h-44 w-full bg-black relative overflow-hidden border-b border-gray-900/60 cursor-pointer group/vid" onclick="if(!event.target.tagName.toLowerCase().includes('input')) window.open('${item.url}', '_blank')">
                                     <video class="w-full h-full object-cover opacity-75 group-hover/vid:opacity-100 transition-opacity duration-300" src="/media/${item.id}" muted loop playsinline onmouseenter="this.play()" onmouseleave="this.pause(); this.currentTime = 0;"></video>
-                                    <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-60"></div>
+                                    <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-60 pointer-events-none"></div>
                                     
-                                    <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-[10px] text-gray-300 px-2 py-0.5 rounded-md border border-gray-800 flex items-center gap-1 font-mono">
+                                    <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-[10px] text-gray-300 px-2 py-0.5 rounded-md border border-gray-800 flex items-center gap-1 font-mono pointer-events-none">
                                         <i class="fa-solid fa-stopwatch text-[9px]"></i> ${item.duration ? item.duration + ' сек.' : 'Видео'}
                                     </div>
                                     
@@ -292,16 +316,16 @@
                             statusBadge = `<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded-md border border-emerald-500/20 font-medium">Готово</span>`;
                         }
                     } else {
-                        // Для обычных картинок — выводим полноценное изображение-превью
                         mediaPreview = `
-                            <div class="h-44 w-full bg-gray-900 relative overflow-hidden border-b border-gray-900/60 cursor-pointer" onclick="window.open('${item.url}', '_blank')">
+                            <div class="h-44 w-full bg-gray-900 relative overflow-hidden border-b border-gray-900/60 cursor-pointer" onclick="if(!event.target.tagName.toLowerCase().includes('input')) window.open('${item.url}', '_blank')">
                                 <img class="w-full h-full object-cover opacity-75 hover:opacity-100 transition-all duration-300 hover:scale-105" src="/media/${item.id}" alt="${item.filename}">
-                                <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-40"></div>
+                                <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-40 pointer-events-none"></div>
                             </div>`;
                         statusBadge = `<span class="bg-purple-500/10 text-purple-400 text-[10px] px-2 py-0.5 rounded-md border border-purple-500/20 font-medium">Фото</span>`;
                     }
 
                     card.innerHTML = `
+                        ${checkboxHtml}
                         ${mediaPreview}
                         <div class="p-4 flex-grow flex flex-col justify-between space-y-3">
                             <div class="space-y-1">
@@ -340,6 +364,7 @@
         function enterAlbumContext(id, name) {
             currentAlbumId = id;
             currentAlbumName = name;
+            clearSelection();
             document.getElementById('albumContextBar').classList.remove('hidden');
             document.getElementById('currentAlbumNameContext').innerText = name;
             document.getElementById('dropZoneText').innerHTML = `Перетащите файлы или нажмите <span class="bg-gray-900 px-1.5 py-0.5 rounded text-xs text-blue-400 font-mono">Ctrl + V</span> для загрузки напрямую в альбом <b>"${name}"</b>`;
@@ -349,6 +374,7 @@
         function exitAlbumContext() {
             currentAlbumId = null;
             currentAlbumName = null;
+            clearSelection();
             document.getElementById('albumContextBar').classList.add('hidden');
             document.getElementById('dropZoneText').innerHTML = `Перетащите медиа сюда, нажмите <span class="bg-gray-900 px-1.5 py-0.5 rounded text-xs text-blue-400 font-mono">Ctrl + V</span> или <span class="text-blue-500 group-hover:underline">выберите файлы</span>`;
             loadGallery();
@@ -365,7 +391,6 @@
             const msg = isAlbum ? "Снести весь альбом и удалить все вложенные фотографии навсегда?" : "Удалить файл навсегда?";
             if (!confirm(msg)) return;
             
-            // ЖЕСТКАЯ СВЯЗКА С БЭКЕНДОМ СИСТЕМЫ ОЧИСТКИ
             const targetUrl = isAlbum ? `/api/albums/${id}` : `/api/media/${id}`;
             
             try {
@@ -513,6 +538,88 @@
             const check = document.getElementById('agreeCheckbox');
             if (check) { check.checked = true; check.dispatchEvent(new Event('change')); }
             closeAgreement();
+        }
+
+        // --- ФУНКЦИИ МАССОВОГО УПРАВЛЕНИЯ ---
+        function toggleSelection(id, type, isChecked) {
+            if (isChecked) {
+                selectedItems.set(id, type);
+            } else {
+                selectedItems.delete(id);
+            }
+            updateBulkActionBar();
+        }
+
+        function updateBulkActionBar() {
+            const bar = document.getElementById('bulkActionsBar');
+            const albumBtn = document.getElementById('bulkAlbumBtn');
+            
+            if (selectedItems.size > 0) {
+                document.getElementById('selectionCount').innerText = `Выбрано: ${selectedItems.size}`;
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+                
+                // Анимация выезда снизу
+                setTimeout(() => bar.classList.remove('translate-y-10', 'opacity-0'), 10);
+
+                // Блокируем кнопку "В альбом", если среди выбранного есть другой альбом (нельзя папку в папку)
+                const hasAlbums = Array.from(selectedItems.values()).includes('album');
+                if (hasAlbums) {
+                    albumBtn.classList.add('opacity-30', 'pointer-events-none');
+                } else {
+                    albumBtn.classList.remove('opacity-30', 'pointer-events-none');
+                }
+            } else {
+                bar.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => {
+                    bar.classList.add('hidden');
+                    bar.classList.remove('flex');
+                }, 300); // Ждем конец анимации
+            }
+        }
+
+        function clearSelection() {
+            selectedItems.clear();
+            updateBulkActionBar();
+            loadGallery(); // Перерисовываем карточки, чтобы снять галочки
+        }
+
+        async function bulkDelete() {
+            if (!confirm(`Вы уверены, что хотите навсегда удалить ${selectedItems.size} элементов?`)) return;
+            
+            try {
+                const res = await fetch('/api/bulk/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedItems.keys()) })
+                });
+                
+                if (res.ok) {
+                    clearSelection();
+                    loadGallery();
+                } else alert("Ошибка при удалении.");
+            } catch (e) { alert("Ошибка сети"); }
+        }
+
+        async function bulkCreateAlbum() {
+            const name = prompt(`Введите название альбома для ${selectedItems.size} файлов:`);
+            if (!name || name.trim() === "") return;
+            
+            try {
+                const res = await fetch('/api/bulk/create-album', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ media_ids: Array.from(selectedItems.keys()), name: name.trim() })
+                });
+                
+                if (res.ok) {
+                    clearSelection();
+                    loadGallery();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Ошибка создания альбома.");
+                }
+            } catch (e) { alert("Ошибка сети"); }
         }
 
         checkAuth();

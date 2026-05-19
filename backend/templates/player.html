@@ -49,7 +49,7 @@
             justify-content: center;
             margin-bottom: 20px;
         }
-        button {
+        button.speed-btn {
             background: #333333;
             color: #CCCCCC;
             border: 1px solid #444444;
@@ -60,11 +60,11 @@
             font-weight: 500;
             transition: all 0.2s ease;
         }
-        button:hover {
+        button.speed-btn:hover {
             background: #444444;
             color: #FFFFFF;
         }
-        button.active {
+        button.speed-btn.active {
             background: #007ACC;
             border-color: #007ACC;
             color: #FFFFFF;
@@ -82,6 +82,24 @@
             font-size: 14px;
             font-weight: 600;
             min-width: 100px;
+        }
+        .report-btn {
+            background: transparent; 
+            border: 1px solid #444; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            color: #777; 
+            cursor: pointer; 
+            font-size: 14px; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+            transition: all 0.2s;
+        }
+        .report-btn:hover {
+            color: #FF5555;
+            border-color: #FF5555;
         }
     </style>
 </head>
@@ -113,20 +131,28 @@
 
             <div class="controls-card">
                 <div class="speed-buttons" id="btnGroup">
-                    <button onclick="setSpeed(0.1)">0.1x</button>
-                    <button onclick="setSpeed(0.5)">0.5x</button>
-                    <button onclick="setSpeed(1, this)" class="active">1x</button>
-                    <button onclick="setSpeed(1.5)">1.5x</button>
-                    <button onclick="setSpeed(2)">2x</button>
-                    <button onclick="setSpeed(2.5)">2.5x</button>
-                    <button onclick="setSpeed(3)">3x</button>
-                    <button onclick="setSpeed(4)">4x</button>
+                    <button class="speed-btn" onclick="setSpeed(0.1)">0.1x</button>
+                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                    <button class="speed-btn active" onclick="setSpeed(1, this)">1x</button>
+                    <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+                    <button class="speed-btn" onclick="setSpeed(2)">2x</button>
+                    <button class="speed-btn" onclick="setSpeed(2.5)">2.5x</button>
+                    <button class="speed-btn" onclick="setSpeed(3)">3x</button>
+                    <button class="speed-btn" onclick="setSpeed(4)">4x</button>
                 </div>
                 <div class="slider-wrapper">
                     <div class="speed-label">Скорость: <span id="speedValue">1.0</span>x</div>
                     <input type="range" id="speedSlider" min="0.1" max="4.0" step="0.1" value="1.0" oninput="setSpeed(this.value)">
                 </div>
             </div>
+            
+            <div style="margin-top: 25px; text-align: center; width: 100%;">
+                <button onclick="reportContent('{{ media.id }}')" class="report-btn">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14.778.085A.5.5 0 0 1 15 .5V8a.5.5 0 0 1-.314.464L14.5 8l.186.464-.003.001-.006.003-.023.009a12 12 0 0 1-.397.15c-.264.095-.631.223-1.047.35-.816.252-1.879.523-2.71.523-.847 0-1.548-.28-2.158-.525l-.028-.01C7.68 8.71 7.14 8.5 6.5 8.5c-.7 0-1.638.23-2.437.477A20 20 0 0 0 3 9.342V15.5a.5.5 0 0 1-1 0V.5a.5.5 0 0 1 1 0v.282c.226-.079.496-.17.79-.26C4.606.272 5.67 0 6.5 0c.84 0 1.524.277 2.121.519l.043.018C9.286.788 9.828 1 10.5 1c.7 0 1.638-.23 2.437-.477a20 20 0 0 0 1.349-.476l.019-.007.004-.002h.001M14 1.221c-.22.078-.48.167-.766.255-.81.252-1.872.523-2.734.523-.886 0-1.592-.286-2.203-.534l-.008-.003C7.66 1.21 7.12 1 6.5 1c-.64 0-1.469.215-2.238.455-.38.12-.733.245-1.026.353-.263.097-.48.182-.636.242v8.125c.15-.05.352-.122.6-.207.303-.104.664-.224 1.04-.338C5.077 9.243 5.92 9 6.5 9c.906 0 1.62.296 2.238.54l.02.008c.602.237 1.144.452 1.742.452.88 0 1.94-.271 2.766-.525.29-.089.55-.178.77-.255V1.221z"/></svg>
+                    Пожаловаться на контент
+                </button>
+            </div>
+            
             <script>
                 const video = document.getElementById('mediaPlayer');
                 const speedValue = document.getElementById('speedValue');
@@ -147,9 +173,37 @@
                     }
                 }
             </script>
+
         {% else %}
             <img src="/media/{{ media.id }}" alt="ChetMedia Image">
+            
+            <div style="margin-top: 25px; text-align: center; width: 100%;">
+                <button onclick="reportContent('{{ media.id }}')" class="report-btn">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14.778.085A.5.5 0 0 1 15 .5V8a.5.5 0 0 1-.314.464L14.5 8l.186.464-.003.001-.006.003-.023.009a12 12 0 0 1-.397.15c-.264.095-.631.223-1.047.35-.816.252-1.879.523-2.71.523-.847 0-1.548-.28-2.158-.525l-.028-.01C7.68 8.71 7.14 8.5 6.5 8.5c-.7 0-1.638.23-2.437.477A20 20 0 0 0 3 9.342V15.5a.5.5 0 0 1-1 0V.5a.5.5 0 0 1 1 0v.282c.226-.079.496-.17.79-.26C4.606.272 5.67 0 6.5 0c.84 0 1.524.277 2.121.519l.043.018C9.286.788 9.828 1 10.5 1c.7 0 1.638-.23 2.437-.477a20 20 0 0 0 1.349-.476l.019-.007.004-.002h.001M14 1.221c-.22.078-.48.167-.766.255-.81.252-1.872.523-2.734.523-.886 0-1.592-.286-2.203-.534l-.008-.003C7.66 1.21 7.12 1 6.5 1c-.64 0-1.469.215-2.238.455-.38.12-.733.245-1.026.353-.263.097-.48.182-.636.242v8.125c.15-.05.352-.122.6-.207.303-.104.664-.224 1.04-.338C5.077 9.243 5.92 9 6.5 9c.906 0 1.62.296 2.238.54l.02.008c.602.237 1.144.452 1.742.452.88 0 1.94-.271 2.766-.525.29-.089.55-.178.77-.255V1.221z"/></svg>
+                    Пожаловаться на контент
+                </button>
+            </div>
         {% endif %}
+
+        <script>
+            async function reportContent(itemId) {
+                const reason = prompt("Опишите причину жалобы (шок-контент, спам, нарушение правил):");
+                if (!reason || reason.trim() === "") return;
+
+                try {
+                    const res = await fetch(`/api/report/${itemId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reason: reason.trim() })
+                    });
+                    
+                    if (res.ok) alert("✅ Жалоба отправлена администрации. Спасибо!");
+                    else alert("❌ Ошибка при отправке жалобы.");
+                } catch (e) {
+                    alert("❌ Ошибка сети.");
+                }
+            }
+        </script>
     </div>
 </body>
 </html>

@@ -13,9 +13,19 @@ from dotenv import load_dotenv
 import asyncio
 from contextlib import asynccontextmanager
 
+from pydantic import BaseModel
+
 # Импортируем SessionLocal и все модели
 from app.database import get_db, SessionLocal, User, Media, Album
 from app.video_processor import calculate_sha256, get_video_duration, process_and_compress_video
+
+# Модели для массовых действий
+class BulkDeleteRequest(BaseModel):
+    ids: list[str]
+
+class BulkAlbumRequest(BaseModel):
+    media_ids: list[str]
+    name: str
 
 load_dotenv()
 
@@ -117,7 +127,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=401, detail="Пользователь не найден")
         if getattr(user, "is_blocked", False):
-            raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован на платформе!")
+            raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован. Пошел нахуй!")
         return user
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Недействительный токен")
@@ -187,7 +197,7 @@ async def callback(code: str, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.id == discord_id).first()
     
     if db_user and getattr(db_user, "is_blocked", False):
-        raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован администрации ChetMedia.")
+        raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован. Пошел нахуй")
         
     is_user_admin = await check_admin_status(discord_id)
     if not db_user:
@@ -452,11 +462,9 @@ async def view_album(request: Request, album_id: str, db: Session = Depends(get_
 async def logout():
     """Удаляет куку с токеном и разлогинивает пользователя"""
     response = RedirectResponse(url="/")
-    # Обязательно указываем те же параметры (secure, httponly, samesite), 
-    # с которыми кука создавалась, чтобы браузер точно её удалил
+    # Удаляем именно ту куку, которую создали при логине (chetmedia_session)
     response.delete_cookie(
-        "access_token",
-        secure=True,
+        key="chetmedia_session",
         httponly=True,
         samesite="lax"
     )
@@ -647,3 +655,109 @@ def get_album_media(album_id: str, current_user: User = Depends(get_current_user
             "url": f"{BASE_URL}/v/{m.id}"
         })
     return result
+
+# Модель для принятия текста жалобы
+class ReportRequest(BaseModel):
+    reason: str
+
+@app.post("/api/report/{item_id}")
+async def report_content(item_id: str, payload: ReportRequest, db: Session = Depends(get_db)):
+    """Принимает жалобу и отправляет красивый Embed в Discord-ветку с пингом роли"""
+    
+    # 1. Ищем контент (это может быть одиночный файл или целый альбом)
+    media = db.query(Media).filter(Media.id == item_id).first()
+    album = None
+    if not media:
+        album = db.query(Album).filter(Album.id == item_id).first()
+        if not album:
+            raise HTTPException(status_code=404, detail="Контент не найден")
+
+    item = media if media else album
+    
+    # 2. Ищем владельца
+    owner = db.query(User).filter(User.id == item.user_id).first()
+    owner_text = f"{owner.username} ({owner.id})" if owner else f"Неизвестно ({item.user_id})"
+
+    # 3. Формируем красивый Embed
+    content_type = "🎬 Медиафайл" if media else "📁 Альбом"
+    content_url = f"{BASE_URL}/v/{item.id}" if media else f"{BASE_URL}/a/{item.id}"
+
+    embed = {
+        "title": "Жалоба на контент",
+        "description": f"**Причина:** {payload.reason}",
+        "color": 15158332, # Красный цвет
+        "fields": [
+            {"name": "Владелец", "value": owner_text, "inline": True},
+            {"name": "Ссылка", "value": f"[{content_type}]({content_url})", "inline": True}
+        ],
+        "footer": {"text": f"ID: {item.id}"}
+    }
+
+    # 4. Отправляем в Discord
+    bot_token = os.getenv("DISCORD_BOT_TOKEN")
+    thread_id = "1506345392680210665" # ID твоей ветки
+    
+    url = f"https://discord.com/api/v10/channels/{thread_id}/messages"
+    headers = {
+        "Authorization": f"Bot {bot_token}",
+        "Content-Type": "application/json"
+    }
+    
+    # ДОБАВЛЕН ПИНГ РОЛИ В content
+    discord_payload = {
+        "content": "<@&1505359848433516734>",
+        "embeds": [embed]
+    }
+    
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, headers=headers, json=discord_payload)
+        if res.status_code not in (200, 201):
+            print(f"❌ Ошибка отправки жалобы в Discord: {res.text}")
+            
+    return {"status": "ok"}
+
+@app.post("/api/bulk/delete")
+def bulk_delete_media(payload: BulkDeleteRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Массовое удаление файлов и альбомов"""
+    for item_id in payload.ids:
+        # Ищем среди одиночных файлов
+        media = db.query(Media).filter(Media.id == item_id, Media.user_id == current_user.id).first()
+        if media:
+            if media.file_path and Path(media.file_path).exists():
+                count = db.query(Media).filter(Media.file_path == media.file_path).count()
+                if count == 1:
+                    os.remove(media.file_path)
+            db.delete(media)
+        else:
+            # Если это не файл, ищем среди альбомов
+            album = db.query(Album).filter(Album.id == item_id, Album.user_id == current_user.id).first()
+            if album:
+                for m in album.media:
+                    count = db.query(Media).filter(Media.file_path == m.file_path).count()
+                    if count == 1 and m.file_path and Path(m.file_path).exists():
+                        os.remove(m.file_path)
+                db.delete(album)
+    db.commit()
+    return {"status": "success"}
+
+@app.post("/api/bulk/create-album")
+def bulk_create_album(payload: BulkAlbumRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Создает альбом и переносит в него выбранные файлы"""
+    media_items = db.query(Media).filter(Media.id.in_(payload.media_ids), Media.user_id == current_user.id).all()
+    if not media_items:
+        raise HTTPException(status_code=400, detail="Нет доступных файлов для создания альбома")
+
+    album_id = uuid.uuid4().hex[:8]
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=14)
+    
+    # 1. Создаем сам альбом
+    db_album = Album(id=album_id, user_id=current_user.id, name=payload.name, expires_at=expires_at)
+    db.add(db_album)
+    
+    # 2. Переписываем всем файлам их новый дом (album_id)
+    for m in media_items:
+        m.album_id = album_id
+        
+    db.commit()
+    return {"status": "success", "album_id": album_id}

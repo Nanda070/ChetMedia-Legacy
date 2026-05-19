@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChetMedia | Альбом</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #0F0F11; }
-        .lightbox { display: none; background-color: rgba(10, 10, 12, 0.95); }
     </style>
 </head>
 <body class="text-gray-200 min-h-screen p-6">
@@ -27,9 +26,16 @@
                 </h1>
                 <p class="text-gray-500 text-xs mt-1"><i class="fa-solid fa-clock"></i> Удаление всего альбома: <span class="text-gray-400 font-medium">{{ expires_at }}</span></p>
             </div>
-            <span class="bg-blue-600/10 text-blue-400 border border-blue-900/30 text-xs px-3 py-1.5 rounded-xl font-medium">
-                <i class="fa-solid fa-images mr-1"></i> Снимков: {{ photos|length }}
-            </span>
+            
+            <div class="flex items-center gap-3">
+                <span class="bg-blue-600/10 text-blue-400 border border-blue-900/30 text-xs px-3 py-1.5 rounded-xl font-medium">
+                    <i class="fa-solid fa-images mr-1"></i> Снимков: {{ photos|length }}
+                </span>
+                
+                <button onclick="reportContent()" class="text-gray-500 hover:text-red-400 transition-colors text-sm cursor-pointer border border-gray-800 bg-gray-900/40 px-3 py-1.5 rounded-xl flex items-center gap-1.5" title="Пожаловаться на альбом">
+                    <i class="fa-solid fa-flag"></i> Жалоба
+                </button>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -44,7 +50,7 @@
         </div>
     </div>
 
-    <div id="lightbox" class="lightbox fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm select-none" onclick="closeLightbox()">
+    <div id="lightbox" class="hidden fixed inset-0 z-50 bg-black/95 items-center justify-center p-4 backdrop-blur-sm select-none" onclick="closeLightbox()">
         <button class="absolute top-6 right-6 text-gray-400 hover:text-white text-2xl cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
         
         <button class="absolute left-6 text-gray-400 hover:text-white text-3xl p-4 cursor-pointer hidden sm:block" onclick="prevPhoto(event)"><i class="fa-solid fa-chevron-left"></i></button>
@@ -55,7 +61,6 @@
     </div>
 
     <script>
-        // Парсим массив путей картинок из шаблона Jinja2
         const photos = [
             {% for photo in photos %}
                 "/media/{{ photo.id }}",
@@ -69,12 +74,15 @@
         function openLightbox(index) {
             currentIndex = index;
             lightboxImg.src = photos[currentIndex];
-            lightbox.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Запрещаем скролл страницы
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex'); // Показываем окно только при клике
+            document.body.style.overflow = 'hidden'; 
         }
 
         function closeLightbox() {
-            lightbox.style.display = 'none';
+            lightbox.classList.add('hidden');
+            lightbox.classList.remove('flex');
+            lightboxImg.src = ""; // Очищаем картинку, чтобы не было мерцания при следующем открытии
             document.body.style.overflow = 'auto';
         }
 
@@ -90,14 +98,32 @@
             lightboxImg.src = photos[currentIndex];
         }
 
-        // Управление с клавиатуры (стрелочки и Esc)
         document.addEventListener('keydown', (e) => {
-            if (lightbox.style.display === 'flex') {
+            if (lightbox.classList.contains('flex')) {
                 if (e.key === 'Escape') closeLightbox();
                 if (e.key === 'ArrowRight') nextPhoto(e);
                 if (e.key === 'ArrowLeft') prevPhoto(e);
             }
         });
+
+        async function reportContent() {
+            const itemId = window.location.pathname.split('/').pop();
+            const reason = prompt("Опишите причину жалобы на этот альбом:");
+            if (!reason || reason.trim() === "") return;
+
+            try {
+                const res = await fetch(`/api/report/${itemId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason.trim() })
+                });
+                
+                if (res.ok) alert("✅ Жалоба отправлена администрации. Спасибо!");
+                else alert("❌ Ошибка при отправке жалобы.");
+            } catch (e) {
+                alert("❌ Ошибка сети.");
+            }
+        }
     </script>
 </body>
 </html>
