@@ -27,6 +27,10 @@ class BulkAlbumRequest(BaseModel):
     media_ids: list[str]
     name: str
 
+class BulkAddToAlbumRequest(BaseModel):
+    media_ids: list[str]
+    album_id: str
+
 load_dotenv()
 
 async def cleanup_expired_media_loop():
@@ -761,3 +765,23 @@ def bulk_create_album(payload: BulkAlbumRequest, current_user: User = Depends(ge
         
     db.commit()
     return {"status": "success", "album_id": album_id}
+
+@app.post("/api/bulk/add-to-album")
+def bulk_add_to_album(payload: BulkAddToAlbumRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Добавляет (или переносит) выбранные файлы в существующий альбом"""
+    # 1. Проверяем, существует ли альбом и принадлежит ли он юзеру
+    album = db.query(Album).filter(Album.id == payload.album_id, Album.user_id == current_user.id).first()
+    if not album:
+        raise HTTPException(status_code=404, detail="Альбом не найден")
+
+    # 2. Ищем выбранные медиафайлы
+    media_items = db.query(Media).filter(Media.id.in_(payload.media_ids), Media.user_id == current_user.id).all()
+    if not media_items:
+        raise HTTPException(status_code=400, detail="Нет доступных файлов для переноса")
+
+    # 3. Переназначаем им альбом
+    for m in media_items:
+        m.album_id = album.id
+        
+    db.commit()
+    return {"status": "success"}

@@ -95,6 +95,44 @@
             </div>
         </div>
 
+        <div id="albumSelectionModal" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-gray-950 border border-gray-900 rounded-2xl max-w-md w-full flex flex-col shadow-2xl">
+                <div class="p-5 border-b border-gray-900 flex justify-between items-center">
+                    <h3 class="text-md font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-amber-500"></i> Управление альбомами
+                    </h3>
+                    <button onclick="closeAlbumSelectionModal()" class="text-gray-500 hover:text-white text-xl cursor-pointer p-1"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 space-y-5">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Создать новый альбом</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="newAlbumNameInput" placeholder="Название альбома..." class="flex-grow bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 transition-colors">
+                            <button onclick="bulkCreateAlbumFromModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-lg shadow-blue-900/20">Создать</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4 py-2 opacity-50">
+                        <div class="h-px bg-gray-700 flex-grow"></div>
+                        <span class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">ИЛИ</span>
+                        <div class="h-px bg-gray-700 flex-grow"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">В существующий альбом</label>
+                        <div class="flex gap-2">
+                            <select id="existingAlbumsSelect" class="flex-grow bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none">
+                                <option value="">-- Выберите альбом --</option>
+                            </select>
+                            <button onclick="bulkAddToExistingAlbum()" class="bg-amber-600 hover:bg-amber-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-lg shadow-amber-900/20">Добавить</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
         <div id="dashboardScreen" class="hidden space-y-10">
             
             <div id="albumSuccessAlert" class="hidden bg-emerald-950/30 border border-emerald-900/50 p-5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -160,8 +198,8 @@
             <span id="selectionCount" class="text-sm font-bold text-white px-2">Выбрано: 0</span>
             <div class="h-6 w-px bg-gray-700"></div>
             
-            <button id="bulkAlbumBtn" onclick="bulkCreateAlbum()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-900/20">
-                <i class="fa-solid fa-folder-plus"></i> В новый альбом
+            <button id="bulkAlbumBtn" onclick="openAlbumSelectionModal()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-900/20">
+                <i class="fa-solid fa-folder-plus"></i> В альбом
             </button>
             
             <button onclick="bulkDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-red-900/20">
@@ -187,6 +225,7 @@
         let currentAlbumId = null;
         let currentAlbumName = null;
         let selectedItems = new Map(); // Хранит ID и тип выбранных файлов
+        let userAlbumsList = []; // Храним список альбомов для выпадающего меню
 
         async function checkAuth() {
             try {
@@ -221,6 +260,9 @@
             const res = await fetch(url);
             if (!res.ok) return;
             const items = await res.json();
+            
+            // Сохраняем список альбомов, чтобы показывать их в модалке
+            userAlbumsList = items.filter(item => item.type === 'album'); 
             
             const grid = document.getElementById('mediaGrid');
             const empty = document.getElementById('emptyState');
@@ -559,10 +601,8 @@
                 bar.classList.remove('hidden');
                 bar.classList.add('flex');
                 
-                // Анимация выезда снизу
                 setTimeout(() => bar.classList.remove('translate-y-10', 'opacity-0'), 10);
 
-                // Блокируем кнопку "В альбом", если среди выбранного есть другой альбом (нельзя папку в папку)
                 const hasAlbums = Array.from(selectedItems.values()).includes('album');
                 if (hasAlbums) {
                     albumBtn.classList.add('opacity-30', 'pointer-events-none');
@@ -574,14 +614,14 @@
                 setTimeout(() => {
                     bar.classList.add('hidden');
                     bar.classList.remove('flex');
-                }, 300); // Ждем конец анимации
+                }, 300);
             }
         }
 
         function clearSelection() {
             selectedItems.clear();
             updateBulkActionBar();
-            loadGallery(); // Перерисовываем карточки, чтобы снять галочки
+            loadGallery(); 
         }
 
         async function bulkDelete() {
@@ -601,9 +641,35 @@
             } catch (e) { alert("Ошибка сети"); }
         }
 
-        async function bulkCreateAlbum() {
-            const name = prompt(`Введите название альбома для ${selectedItems.size} файлов:`);
-            if (!name || name.trim() === "") return;
+        // Открытие новой модалки для выбора альбома
+        function openAlbumSelectionModal() {
+            const select = document.getElementById('existingAlbumsSelect');
+            select.innerHTML = '<option value="">-- Выберите альбом --</option>';
+            
+            if (userAlbumsList.length === 0) {
+                select.innerHTML = '<option value="">Нет созданных альбомов</option>';
+                select.disabled = true;
+            } else {
+                select.disabled = false;
+                userAlbumsList.forEach(album => {
+                    select.innerHTML += `<option value="${album.id}">${album.name}</option>`;
+                });
+            }
+            
+            document.getElementById('newAlbumNameInput').value = '';
+            document.getElementById('albumSelectionModal').classList.remove('hidden');
+        }
+
+        function closeAlbumSelectionModal() {
+            document.getElementById('albumSelectionModal').classList.add('hidden');
+        }
+
+        async function bulkCreateAlbumFromModal() {
+            const name = document.getElementById('newAlbumNameInput').value;
+            if (!name || name.trim() === "") {
+                alert("Введите название альбома!");
+                return;
+            }
             
             try {
                 const res = await fetch('/api/bulk/create-album', {
@@ -613,11 +679,35 @@
                 });
                 
                 if (res.ok) {
-                    clearSelection();
-                    loadGallery();
+                    closeAlbumSelectionModal();
+                    clearSelection(); 
                 } else {
                     const data = await res.json();
                     alert(data.detail || "Ошибка создания альбома.");
+                }
+            } catch (e) { alert("Ошибка сети"); }
+        }
+
+        async function bulkAddToExistingAlbum() {
+            const albumId = document.getElementById('existingAlbumsSelect').value;
+            if (!albumId) {
+                alert("Выберите альбом из списка!");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/bulk/add-to-album', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ media_ids: Array.from(selectedItems.keys()), album_id: albumId })
+                });
+                
+                if (res.ok) {
+                    closeAlbumSelectionModal();
+                    clearSelection();
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Ошибка добавления в альбом.");
                 }
             } catch (e) { alert("Ошибка сети"); }
         }
