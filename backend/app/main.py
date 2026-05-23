@@ -159,6 +159,33 @@ async def check_admin_status(user_id: str) -> bool:
 def read_root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
 
+def send_registration_log_bg(user_id: str, username: str):
+    """Фоновый логгер новых регистраций в Discord"""
+    bot_token = os.getenv("DISCORD_BOT_TOKEN")
+    if not bot_token: return
+
+    channel_id = "1507551870577541232" # ID канала для логов
+    current_time = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M:%S")
+
+    embed = {
+        "title": "Новая регистрация",
+        "color": 5763719,
+        "fields": [
+            {"name": "Username", "value": f"`{username}`", "inline": True},
+            {"name": "ID", "value": f"`{user_id}`", "inline": True},
+            {"name": "Время (UTC)", "value": current_time, "inline": False}
+        ],
+        "footer": {"text": "ChetMedia Security"}
+    }
+
+    url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+    headers = {"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"}
+
+    try:
+        httpx.post(url, headers=headers, json={"embeds": [embed]})
+    except Exception as e:
+        print(f"❌ Ошибка отправки лога регистрации: {e}")
+
 @app.get("/auth/login")
 def login():
     discord_auth_url = f"https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=identify"
@@ -179,7 +206,7 @@ async def admin_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
 
 @app.get("/auth/callback")
-async def callback(code: str, db: Session = Depends(get_db)):
+async def callback(code: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     data = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
@@ -207,6 +234,7 @@ async def callback(code: str, db: Session = Depends(get_db)):
     if not db_user:
         db_user = User(id=discord_id, username=user_info["username"], is_admin=is_user_admin)
         db.add(db_user)
+        background_tasks.add_task(send_registration_log_bg, discord_id, user_info["username"])
     else:
         db_user.is_admin = is_user_admin
         
@@ -699,9 +727,9 @@ async def report_content(item_id: str, payload: ReportRequest, db: Session = Dep
 
     # 4. Отправляем в Discord
     bot_token = os.getenv("DISCORD_BOT_TOKEN")
-    thread_id = "1506345392680210665" # ID твоей ветки
+    channel_id = "1507551756492476426" # ID твоей ветки
     
-    url = f"https://discord.com/api/v10/channels/{thread_id}/messages"
+    url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
     headers = {
         "Authorization": f"Bot {bot_token}",
         "Content-Type": "application/json"
