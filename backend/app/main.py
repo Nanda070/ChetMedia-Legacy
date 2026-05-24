@@ -359,7 +359,9 @@ async def upload_media(
         
     temp_path = UPLOAD_DIR / f"temp_{file_id}{file_extension}"
     with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        # Читаем и сохраняем файл мощными чанками по 1 МБ
+        while chunk := await file.read(1024 * 1024):
+            buffer.write(chunk)
         
     file_hash = calculate_sha256(temp_path)
     existing_file = db.query(Media).filter(Media.file_hash == file_hash).first()
