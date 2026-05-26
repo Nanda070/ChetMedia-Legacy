@@ -27,6 +27,7 @@ def process_and_compress_video(input_path: Path, output_path: Path) -> bool:
         "-vf", "scale='min(1920,iw)':'-2'", 
         "-c:v", "libx264", "-crf", "23", "-preset", "fast",
         "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",  
         str(output_path)
     ]
     try:
