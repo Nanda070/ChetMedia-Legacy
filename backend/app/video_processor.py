@@ -25,7 +25,7 @@ def process_and_compress_video(input_path: Path, output_path: Path) -> bool:
     cmd = [
         r"ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale='min(1920,iw)':'-2'", 
-        "-c:v", "libx264", "-crf", "23", "-preset", "fast",
+        "-c:v", "libx264", "-crf", "23", "-preset", "ultrafast",
         "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",  
         str(output_path)
