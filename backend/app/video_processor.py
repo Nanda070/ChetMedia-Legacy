@@ -11,7 +11,7 @@ def calculate_sha256(file_path: Path) -> str:
 
 def get_video_duration(file_path: Path) -> int:
     cmd = [
-        r"C:\ffmpeg\bin\ffprobe.exe", "-v", "error", "-show_entries", "format=duration",
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nocrekey=1", str(file_path)
     ]
     try:
