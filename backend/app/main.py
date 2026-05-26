@@ -11,6 +11,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 import asyncio
+
+import hashlib
+
 from contextlib import asynccontextmanager
 
 from pydantic import BaseModel
@@ -358,12 +361,17 @@ async def upload_media(
         file_extension = ".png" # Дефолт для файлов из буфера обмена (Ctrl+V) без расширения
         
     temp_path = UPLOAD_DIR / f"temp_{file_id}{file_extension}"
+
+    sha256_hash = hashlib.sha256()
+    
     with open(temp_path, "wb") as buffer:
         # Читаем и сохраняем файл мощными чанками по 1 МБ
         while chunk := await file.read(1024 * 1024):
             buffer.write(chunk)
-        
-    file_hash = calculate_sha256(temp_path)
+            sha256_hash.update(chunk)
+            
+    file_hash = sha256_hash.hexdigest()
+
     existing_file = db.query(Media).filter(Media.file_hash == file_hash).first()
     
     is_video = file.content_type.startswith("video/")
