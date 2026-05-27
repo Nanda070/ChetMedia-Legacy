@@ -275,9 +275,10 @@ async def callback(request: Request, code: str, background_tasks: BackgroundTask
     current_user = None
     if token:
         try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+            # Жестко прописываем алгоритм "HS256", чтобы избежать NameError
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
             current_user = db.query(User).filter(User.id == payload.get("sub")).first()
-        except jwt.PyJWTError:
+        except Exception: # Ловим вообще любую ошибку токена
             pass
 
     # 3. Ищем, привязан ли этот Discord уже к какому-то аккаунту
