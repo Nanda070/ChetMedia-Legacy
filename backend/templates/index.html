@@ -423,21 +423,31 @@
         function openProfileModal() {
             if (!currentUserData) return;
             
+            // 1. Имя пользователя
             document.getElementById('profileUsername').innerText = currentUserData.username;
             
-            // Настройка отображения Email
+            // 2. Настройка отображения Email (Привязка / Отображение)
+            const emailContainer = document.getElementById('profileEmail').parentElement;
+            
             if (currentUserData.email) {
-                document.getElementById('profileEmail').innerText = currentUserData.email;
-                if (currentUserData.is_verified) {
-                    document.getElementById('profileEmailBadge').classList.remove('hidden');
-                }
+                // Если почта есть, восстанавливаем стандартный вид с бейджиком
+                emailContainer.innerHTML = `
+                    <span id="profileEmail" class="text-white text-sm">${currentUserData.email}</span>
+                    <span id="profileEmailBadge" class="${currentUserData.is_verified ? '' : 'hidden'} bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/20 font-medium">Подтвержден</span>
+                `;
             } else {
-                document.getElementById('profileEmail').innerHTML = '<span class="text-gray-500 italic">Не привязан</span>';
-                document.getElementById('profileEmailBadge').classList.add('hidden');
+                // Если почты нет — показываем красивую кнопку привязки
+                emailContainer.innerHTML = `
+                    <span class="text-gray-500 italic text-sm">Не привязан</span>
+                    <button onclick="linkEmailFlow()" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-500 text-[11px] font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg">
+                        <i class="fa-solid fa-envelope"></i> Привязать
+                    </button>
+                `;
             }
 
-            // Настройка отображения Discord (Привязка / Отвязка)
+            // 3. Настройка отображения Discord (Привязка / Отвязка)
             const discordContainer = document.getElementById('profileDiscord');
+            
             if (currentUserData.discord_id) {
                 // Дискорд привязан
                 let unlinkBtn = '';
@@ -445,6 +455,7 @@
                 if (currentUserData.email) {
                     unlinkBtn = `<button onclick="unlinkDiscord()" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded border border-red-900/30 bg-red-900/10 transition-colors" title="Отвязать Discord"><i class="fa-solid fa-link-slash"></i></button>`;
                 }
+                
                 discordContainer.innerHTML = `
                     <span class="text-white text-sm flex items-center gap-2" title="Discord ID: ${currentUserData.discord_id}">
                         <i class="fa-brands fa-discord text-[#5865F2]"></i> 
@@ -462,6 +473,7 @@
                 `;
             }
 
+            // 4. Показываем само окно
             document.getElementById('profileModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
