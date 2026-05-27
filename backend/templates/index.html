@@ -16,8 +16,8 @@
             animation: shimmer 2s infinite;
         }
     </style>
-    <meta name="google-site-verification" content="dr8kZ8Pe-XjQ87nc6jhMB4E9C2LtjIL-GPk_5IE71P0" />
-    <meta name="yandex-verification" content="bf1d12afe8b8b396" />
+    <meta name="google-site-verification" content="-yQIsjhi2Wg10sFXpv1l9a5OVXOhMl8gL3tZ7mWzjmY" />
+    <meta name="yandex-verification" content="85c68bcfaadf2fb5" />
 </head>
 <body class="text-gray-200 min-h-screen font-sans">
 
@@ -36,29 +36,99 @@
                 <span id="username" class="font-medium text-gray-300"></span>
                 <i class="fa-solid fa-circle-user text-blue-500 text-lg"></i>
                 
-                <div class="h-4 w-px bg-gray-800 mx-1"></div> 
+                <button onclick="openProfileModal()" class="text-gray-400 hover:text-blue-400 transition-colors cursor-pointer mr-1" title="Настройки">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <div class="h-4 w-px bg-gray-800 mx-1"></div>
                 <a href="/auth/logout" class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" title="Выйти из аккаунта">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </a>
             </div>
         </header>
 
-        <div id="loginScreen" class="hidden flex flex-col items-center justify-center py-20">
-            <div class="bg-gray-950/80 border border-gray-900 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl backdrop-blur-md">
-                <h2 class="text-3xl font-extrabold mb-3 text-white">Добро пожаловать</h2>
-                <p class="text-gray-400 text-sm mb-6">Для загрузки медиа и управления своими файлами авторизуйтесь через Discord</p>
+        <div id="loginScreen" class="hidden flex flex-col items-center justify-center py-10 md:py-20">
+            <div class="bg-gray-950/80 border border-gray-900 rounded-2xl max-w-md w-full shadow-2xl backdrop-blur-md overflow-hidden">
                 
-                <div class="flex items-start gap-3 text-left mb-6 bg-gray-900/30 border border-gray-900/60 p-4 rounded-xl transition-all duration-200">
-                    <input type="checkbox" id="agreeCheckbox" class="mt-0.5 w-4 h-4 rounded border-gray-800 bg-gray-950 text-blue-500 focus:ring-blue-500/20 cursor-pointer accent-blue-500">
-                    <label for="agreeCheckbox" class="text-xs text-gray-400 leading-relaxed select-none cursor-pointer">
-                        Я подтверждаю, что прочитал, понял и безоговорочно принимаю условия 
-                        <button onclick="openAgreement()" class="text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer focus:outline-none inline-block">Пользовательского соглашения</button>.
-                    </label>
+                <div class="flex border-b border-gray-900" id="authTabs">
+                    <button onclick="switchTab('discord')" id="tabDiscord" class="flex-1 py-4 text-sm font-semibold text-white bg-gray-900/40 border-b-2 border-[#5865F2] transition-colors"><i class="fa-brands fa-discord mr-1"></i> Discord</button>
+                    <button onclick="switchTab('login')" id="tabLogin" class="flex-1 py-4 text-sm font-semibold text-gray-500 hover:text-gray-300 transition-colors">Вход</button>
+                    <button onclick="switchTab('register')" id="tabRegister" class="flex-1 py-4 text-sm font-semibold text-gray-500 hover:text-gray-300 transition-colors">Регистрация</button>
                 </div>
 
-                <a id="discordLoginBtn" href="/auth/login" onclick="handleLoginClick(event)" class="inline-flex items-center justify-center gap-3 w-full bg-[#5865F2] opacity-40 cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg">
-                    <i class="fa-brands fa-discord text-xl"></i> Войти через Discord
-                </a>
+                <div class="p-8">
+                    <div class="flex items-start gap-3 text-left mb-6 bg-gray-900/30 border border-gray-900/60 p-4 rounded-xl">
+                        <input type="checkbox" id="agreeCheckbox" class="mt-0.5 w-4 h-4 rounded border-gray-800 bg-gray-950 text-blue-500 focus:ring-blue-500/20 cursor-pointer accent-blue-500">
+                        <label for="agreeCheckbox" class="text-xs text-gray-400 leading-relaxed select-none cursor-pointer">
+                            Я принимаю условия <button onclick="openAgreement()" class="text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer">Пользовательского соглашения</button>.
+                        </label>
+                    </div>
+
+                    <div id="formDiscord" class="space-y-4">
+                        <div class="text-center mb-6">
+                            <h2 class="text-2xl font-bold text-white mb-2">Быстрый вход</h2>
+                            <p class="text-xs text-gray-400">В один клик, без паролей и подтверждений.</p>
+                        </div>
+                        <a id="discordLoginBtn" href="/auth/login" onclick="handleLoginClick(event)" class="inline-flex items-center justify-center gap-3 w-full bg-[#5865F2] opacity-40 cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200">
+                            <i class="fa-brands fa-discord text-xl"></i> Войти через Discord
+                        </a>
+                    </div>
+
+                    <div id="formLogin" class="hidden space-y-4">
+                        <div class="text-center mb-6">
+                            <h2 class="text-xl font-bold text-white mb-1">С возвращением</h2>
+                            <p class="text-xs text-gray-400">Введите почту и пароль</p>
+                        </div>
+                        <div class="space-y-3">
+                            <input type="email" id="loginEmail" placeholder="Email" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                            <input type="password" id="loginPassword" placeholder="Пароль" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                        </div>
+                        <button id="emailLoginBtn" onclick="handleEmailLogin()" class="w-full bg-blue-600 hover:bg-blue-500 opacity-40 cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all mt-4">
+                            Войти в аккаунт
+                        </button>
+                    </div>
+
+                    <div id="formRegister" class="hidden space-y-4">
+                        <div id="regStep1">
+                            <div class="text-center mb-6">
+                                <h2 class="text-xl font-bold text-white mb-1">Создать аккаунт</h2>
+                                <p class="text-xs text-gray-400">Заполните данные для регистрации</p>
+                            </div>
+                            <div class="space-y-3">
+                                <input type="text" id="regUsername" placeholder="Имя пользователя (Никнейм)" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                                <input type="email" id="regEmail" placeholder="Ваш Email" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                                <input type="password" id="regPassword" placeholder="Пароль" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                                <input type="password" id="regPasswordConfirm" placeholder="Повторите пароль" class="w-full bg-gray-900/50 border border-gray-800 text-white text-sm rounded-xl px-4 py-3 focus:border-blue-500 outline-none transition-colors">
+                            </div>
+                            <button id="emailRegBtn" onclick="handleEmailRegister()" class="w-full bg-blue-600 hover:bg-blue-500 opacity-40 cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all mt-4 flex items-center justify-center">
+                                <span id="regBtnText">Продолжить</span>
+                                <i id="regBtnSpinner" class="fa-solid fa-circle-notch animate-spin ml-2 hidden"></i>
+                            </button>
+                        </div>
+                        
+                        <div id="regStep2" class="hidden space-y-4">
+                            <div class="text-center mb-6">
+                                <div class="w-12 h-12 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fa-solid fa-envelope-open-text text-xl"></i>
+                                </div>
+                                <h2 class="text-xl font-bold text-white mb-1">Проверьте почту</h2>
+                                <p class="text-xs text-gray-400">Мы отправили 6-значный код на <br><b id="displayEmail" class="text-gray-300"></b></p>
+                            </div>
+                            <div class="flex justify-center gap-2 mb-2">
+                                <input type="text" id="code1" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="moveToNext(this, 'code2', event)">
+                                <input type="text" id="code2" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="moveToNext(this, 'code3', event)">
+                                <input type="text" id="code3" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="moveToNext(this, 'code4', event)">
+                                <input type="text" id="code4" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="moveToNext(this, 'code5', event)">
+                                <input type="text" id="code5" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="moveToNext(this, 'code6', event)">
+                                <input type="text" id="code6" maxlength="1" class="w-12 h-14 text-center text-xl font-bold bg-gray-900/80 border border-gray-700 text-white rounded-xl focus:border-blue-500 outline-none transition-colors uppercase" onkeyup="submitCode(event)">
+                            </div>
+                            <button onclick="verifyEmailCode()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all">
+                                Подтвердить
+                            </button>
+                            <button onclick="resetRegistration()" class="w-full text-xs text-gray-500 hover:text-white mt-2">Изменить email</button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
 
@@ -88,11 +158,54 @@
                         <h4 class="font-bold text-red-400 text-sm mb-1.5">2. Ограничения</h4>
                         <p class="text-red-300/80">Запрещена загрузка вредоносного ПО, спама, взлом токенов и публикация незаконных материалов. Нарушение ведет к бану аккаунта и очистке всей вашей медиатеки.</p>
                     </div>
-                </div>
-                <div class="p-4 bg-gray-900/20 flex justify-end shrink-0">
+                    <div>
+                        <h4 class="font-bold text-white text-sm mb-1.5 text-blue-400">3. Авторизация и приватность</h4>
+                        <p>Вход на платформу осуществляется исключительно через безопасный протокол авторизации Discord (OAuth2). Система запрашивает доступ только к базовому профилю (ваш ID, никнейм и аватар). Мы не собираем пароли, не имеем доступа к вашим серверам или личным перепискам. При нажатии кнопки «Выйти» ваша сессия полностью уничтожается.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white text-sm mb-1.5 text-blue-400">4. Модерация и срок жизни контента</h4>
+                        <p>Загруженные файлы имеют заданный срок жизни и автоматически удаляются (сгорают) по истечении этого времени. Администрация ChetMedia оставляет за собой право удалить любой контент без предупреждения, если на него поступила жалоба от пользователей (Report) или он нарушает правила площадки.</p>
+                    </div>
+                 <div class="bg-red-950/10 border border-red-950/30 p-3 rounded-xl">
+                        <h4 class="font-bold text-red-400 text-sm mb-1.5">5. Отказ от ответственности</h4>
+                        <p class="text-red-300/80">Сервис предоставляется по принципу «как есть». Мы используем современные алгоритмы для безопасного хранения и сжатия файлов, но не несем ответственности за их утерю в случае непредвиденных технических сбоев на серверах. Всегда храните оригиналы важных материалов на своих устройствах.</p>
+                    </div>
+               </div> <div class="p-4 bg-gray-900/20 flex justify-end shrink-0">
                     <button onclick="acceptFromModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-5 rounded-xl transition-all cursor-pointer hover:scale-[1.02]">
                         Ознакомлен и согласен
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="profileModal" class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-gray-950 border border-gray-900 rounded-2xl max-w-sm w-full flex flex-col shadow-2xl overflow-hidden">
+                <div class="p-5 border-b border-gray-900 flex justify-between items-center bg-gray-900/20">
+                    <h3 class="text-md font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-blue-500"></i> Настройки аккаунта
+                    </h3>
+                    <button onclick="closeProfileModal()" class="text-gray-500 hover:text-white text-xl cursor-pointer p-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 space-y-5">
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Ваш Никнейм</label>
+                        <div class="text-white font-medium text-sm bg-gray-900/50 border border-gray-800 px-3 py-2 rounded-lg" id="profileUsername">...</div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Email (Почта)</label>
+                        <div class="flex items-center justify-between bg-gray-900/50 border border-gray-800 px-3 py-2 rounded-lg">
+                            <span id="profileEmail" class="text-white text-sm">...</span>
+                            <span id="profileEmailBadge" class="hidden bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/20 font-medium">Подтвержден</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Привязка Discord</label>
+                        <div id="profileDiscord" class="flex items-center justify-between bg-gray-900/50 border border-gray-800 px-3 py-2 rounded-lg min-h-[38px]">
+                            </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -228,12 +341,14 @@
         let currentAlbumName = null;
         let selectedItems = new Map(); // Хранит ID и тип выбранных файлов
         let userAlbumsList = []; // Храним список альбомов для выпадающего меню
+        let currentUserData = null; // Глобальная переменная для хранения данных юзера
 
         async function checkAuth() {
             try {
                 const res = await fetch('/users/me');
                 if (res.ok) {
                     const user = await res.json();
+                    currentUserData = user; // Сохраняем данные для профиля
                     document.getElementById('username').innerText = user.username;
                     
                     if (user.is_admin && !document.getElementById('adminBtn')) {
@@ -254,6 +369,77 @@
             } catch {
                 document.getElementById('loginScreen').classList.remove('hidden');
             }
+        }
+
+        // --- ЛОГИКА ОКНА ПРОФИЛЯ ---
+function openProfileModal() {
+            if (!currentUserData) return;
+            
+            document.getElementById('profileUsername').innerText = currentUserData.username;
+            
+            // Настройка отображения Email
+            if (currentUserData.email) {
+                document.getElementById('profileEmail').innerText = currentUserData.email;
+                if (currentUserData.is_verified) {
+                    document.getElementById('profileEmailBadge').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('profileEmail').innerHTML = '<span class="text-gray-500 italic">Не привязан</span>';
+                document.getElementById('profileEmailBadge').classList.add('hidden');
+            }
+
+            // Настройка отображения Discord (Привязка / Отвязка)
+            const discordContainer = document.getElementById('profileDiscord');
+            if (currentUserData.discord_id) {
+                // Дискорд привязан
+                let unlinkBtn = '';
+                // Показываем кнопку "Отвязать", только если есть почта (защита от потери аккаунта)
+                if (currentUserData.email) {
+                    unlinkBtn = `<button onclick="unlinkDiscord()" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded border border-red-900/30 bg-red-900/10 transition-colors" title="Отвязать Discord"><i class="fa-solid fa-link-slash"></i></button>`;
+                }
+                discordContainer.innerHTML = `
+                    <span class="text-white text-sm flex items-center gap-2" title="Discord ID: ${currentUserData.discord_id}">
+                        <i class="fa-brands fa-discord text-[#5865F2]"></i> 
+                        Привязан <span class="text-gray-500 text-[10px] font-mono ml-1 mt-0.5">(${currentUserData.discord_id})</span>
+                    </span>
+                    ${unlinkBtn}
+                `;
+            } else {
+                // Дискорд НЕ привязан
+                discordContainer.innerHTML = `
+                    <span class="text-gray-500 italic text-sm">Не привязан</span>
+                    <a href="/auth/login" class="bg-[#5865F2] hover:bg-[#4752C4] text-white text-[11px] font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#5865F2]/20">
+                        <i class="fa-brands fa-discord"></i> Привязать
+                    </a>
+                `;
+            }
+
+            document.getElementById('profileModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Логика отвязки Discord
+        async function unlinkDiscord() {
+            if (!confirm("Вы уверены, что хотите отвязать Discord от этого аккаунта?")) return;
+
+            try {
+                const res = await fetch('/api/users/me/unlink-discord', { method: 'POST' });
+                if (res.ok) {
+                    // Обновляем данные на лету
+                    currentUserData.discord_id = null;
+                    openProfileModal(); // Перерисовываем модалку
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Ошибка при отвязке");
+                }
+            } catch (err) {
+                alert("Ошибка сети");
+            }
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
         }
 
         async function loadGallery() {
@@ -554,21 +740,6 @@
             xhr.send(formData);
         }
 
-        const checkbox = document.getElementById('agreeCheckbox');
-        const loginBtn = document.getElementById('discordLoginBtn');
-
-        if (checkbox) {
-            checkbox.addEventListener('change', function() {
-                if (this.checked) {
-                    loginBtn.classList.remove('opacity-40', 'cursor-not-allowed');
-                    loginBtn.classList.add('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-[#4752C4]');
-                } else {
-                    loginBtn.classList.add('opacity-40', 'cursor-not-allowed');
-                    loginBtn.classList.remove('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-[#4752C4]');
-                }
-            });
-        }
-
         function handleLoginClick(e) {
             if (!document.getElementById('agreeCheckbox').checked) {
                 e.preventDefault();
@@ -592,6 +763,244 @@
                 selectedItems.delete(id);
             }
             updateBulkActionBar();
+        }
+
+        // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК АВТОРИЗАЦИИ ---
+        function switchTab(tabName) {
+            // Сбрасываем стили всех вкладок
+            ['Discord', 'Login', 'Register'].forEach(name => {
+                const tab = document.getElementById(`tab${name}`);
+                const form = document.getElementById(`form${name}`);
+                
+                tab.classList.remove('text-white', 'border-b-2', 'border-[#5865F2]', 'border-blue-500', 'bg-gray-900/40');
+                tab.classList.add('text-gray-500');
+                
+                if (form) form.classList.add('hidden');
+            });
+
+            // Активируем выбранную вкладку
+            const activeTab = document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            const activeForm = document.getElementById(`form${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            
+            activeTab.classList.remove('text-gray-500');
+            activeTab.classList.add('text-white', 'border-b-2', 'bg-gray-900/40');
+            
+            if (tabName === 'discord') activeTab.classList.add('border-[#5865F2]');
+            else activeTab.classList.add('border-blue-500');
+            
+            if (activeForm) activeForm.classList.remove('hidden');
+
+            // Сбрасываем форму регистрации до Шага 1 при смене вкладки
+            if (tabName !== 'register') {
+                document.getElementById('regStep1').classList.remove('hidden');
+                document.getElementById('regStep2').classList.add('hidden');
+            }
+        }
+
+        // --- ЛОГИКА АВТОРИЗАЦИИ ПО ПОЧТЕ (ВХОД) ---
+        async function handleEmailLogin() {
+            if (!document.getElementById('agreeCheckbox').checked) {
+                alert('Необходимо принять условия соглашения.');
+                return;
+            }
+
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                alert("Заполните все поля!");
+                return;
+            }
+
+            const btn = document.getElementById('emailLoginBtn');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Вход...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/auth/login_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password })
+                });
+
+                if (res.ok) {
+                    window.location.reload(); // Перезагружаем страницу, checkAuth() сам подхватит куку
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Ошибка авторизации");
+                    btn.innerHTML = 'Войти в аккаунт';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                alert("Ошибка сети");
+                btn.innerHTML = 'Войти в аккаунт';
+                btn.disabled = false;
+            }
+        }
+
+        // --- ЛОГИКА РЕГИСТРАЦИИ (ШАГ 1: ОТПРАВКА КОДА) ---
+        let currentRegEmail = ""; // Запоминаем почту для Шага 2
+
+        async function handleEmailRegister() {
+            if (!document.getElementById('agreeCheckbox').checked) {
+                alert('Необходимо принять условия соглашения.');
+                return;
+            }
+
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+
+            if (!username || !email || !password) {
+                alert("Заполните все поля!");
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                alert("Пароли не совпадают!");
+                return;
+            }
+
+            const btnText = document.getElementById('regBtnText');
+            const btnSpinner = document.getElementById('regBtnSpinner');
+            const btn = document.getElementById('emailRegBtn');
+            
+            btn.disabled = true;
+            btnText.innerText = 'Отправляем код...';
+            btnSpinner.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, email: email, password: password })
+                });
+
+                if (res.ok) {
+                    currentRegEmail = email;
+                    document.getElementById('displayEmail').innerText = email;
+                    
+                    // Переключаем интерфейс на Шаг 2 (ввод кода)
+                    document.getElementById('regStep1').classList.add('hidden');
+                    document.getElementById('regStep2').classList.remove('hidden');
+                    
+                    // Фокус на первый инпут кода
+                    setTimeout(() => document.getElementById('code1').focus(), 100);
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Ошибка при регистрации");
+                }
+            } catch (err) {
+                alert("Ошибка сети");
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'Продолжить';
+                btnSpinner.classList.add('hidden');
+            }
+        }
+
+        // --- ЛОГИКА РЕГИСТРАЦИИ (ШАГ 2: ВВОД И ПРОВЕРКА КОДА) ---
+        
+        // Автоматический переход между ячейками ввода кода
+        function moveToNext(current, nextFieldID, event) {
+            if (current.value.length === 1 && nextFieldID) {
+                document.getElementById(nextFieldID).focus();
+            }
+            // Обработка Backspace для возврата назад
+            if (event.key === "Backspace" && current.value.length === 0) {
+                const currentIdNumber = parseInt(current.id.replace('code', ''));
+                if (currentIdNumber > 1) {
+                    document.getElementById(`code${currentIdNumber - 1}`).focus();
+                }
+            }
+        }
+
+        // Отправка по Enter на последнем поле
+        function submitCode(event) {
+            if (event.key === "Enter") {
+                verifyEmailCode();
+            }
+            // Обработка Backspace на последнем поле
+            if (event.key === "Backspace" && document.getElementById('code6').value.length === 0) {
+                document.getElementById('code5').focus();
+            }
+        }
+
+        async function verifyEmailCode() {
+            // Собираем код из 6 инпутов
+            let code = "";
+            for (let i = 1; i <= 6; i++) {
+                code += document.getElementById(`code${i}`).value;
+            }
+
+            if (code.length < 6) {
+                alert("Введите код полностью (6 цифр)");
+                return;
+            }
+
+            try {
+                const res = await fetch('/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentRegEmail, code: code })
+                });
+
+                if (res.ok) {
+                    window.location.reload(); // Перезагружаем, кука уже установлена
+                } else {
+                    const data = await res.json();
+                    alert(data.detail || "Неверный код");
+                    // Очищаем поля при ошибке
+                    for (let i = 1; i <= 6; i++) {
+                        document.getElementById(`code${i}`).value = '';
+                    }
+                    document.getElementById('code1').focus();
+                }
+            } catch (err) {
+                alert("Ошибка сети");
+            }
+        }
+
+        function resetRegistration() {
+            document.getElementById('regStep2').classList.add('hidden');
+            document.getElementById('regStep1').classList.remove('hidden');
+            // Очищаем код
+            for (let i = 1; i <= 6; i++) document.getElementById(`code${i}`).value = '';
+        }
+
+        // --- ОБНОВЛЕННАЯ ЛОГИКА ЧЕКБОКСА (Активация кнопок Входа/Регистрации) ---
+        const checkbox = document.getElementById('agreeCheckbox');
+        const loginBtn = document.getElementById('discordLoginBtn');
+        const emailLoginBtn = document.getElementById('emailLoginBtn');
+        const emailRegBtn = document.getElementById('emailRegBtn');
+
+        if (checkbox) {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Разблокируем Discord
+                    loginBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    loginBtn.classList.add('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-[#4752C4]');
+                    
+                    // Разблокируем Вход по почте
+                    emailLoginBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    emailLoginBtn.classList.add('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-blue-500');
+                    
+                    // Разблокируем Регистрацию
+                    emailRegBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    emailRegBtn.classList.add('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-blue-500');
+                } else {
+                    // Блокируем всё обратно
+                    loginBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                    loginBtn.classList.remove('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-[#4752C4]');
+                    
+                    emailLoginBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                    emailLoginBtn.classList.remove('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-blue-500');
+                    
+                    emailRegBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                    emailRegBtn.classList.remove('hover:scale-[1.02]', 'cursor-pointer', 'hover:bg-blue-500');
+                }
+            });
         }
 
         function updateBulkActionBar() {

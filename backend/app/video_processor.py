@@ -11,7 +11,7 @@ def calculate_sha256(file_path: Path) -> str:
 
 def get_video_duration(file_path: Path) -> int:
     cmd = [
-        r"C:\ffmpeg\bin\ffprobe.exe", "-v", "error", "-show_entries", "format=duration",
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nocrekey=1", str(file_path)
     ]
     try:
@@ -25,8 +25,9 @@ def process_and_compress_video(input_path: Path, output_path: Path) -> bool:
     cmd = [
         r"ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale='min(1920,iw)':'-2'", 
-        "-c:v", "libx264", "-crf", "23", "-preset", "fast",
+        "-c:v", "libx264", "-crf", "23", "-preset", "ultrafast",
         "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",  
         str(output_path)
     ]
     try:

@@ -39,8 +39,8 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-gray-900 bg-gray-900/20 text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                            <th class="px-6 py-4">ID (Discord)</th>
-                            <th class="px-6 py-4">Имя пользователя</th>
+                            <th class="px-6 py-4">ID / Никнейм</th>
+                            <th class="px-6 py-4">Связки (Auth)</th>
                             <th class="px-6 py-4">Статус</th>
                             <th class="px-6 py-4 text-right">Действия</th>
                         </tr>
@@ -95,40 +95,85 @@
                         let rowBgClass = 'hover:bg-gray-900/20 transition-colors';
                         let statusBadge = '';
                         let actionButtons = '';
+                        let authBadges = '';
+
+                        // Определяем, какие аккаунты привязаны
+                        if (user.discord_id) {
+                            authBadges += `<span class="inline-flex items-center gap-1 bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 text-[10px] px-2 py-0.5 rounded mr-1"><i class="fa-brands fa-discord"></i> Привязан</span>`;
+                        }
+                        if (user.email) {
+                            authBadges += `<span class="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] px-2 py-0.5 rounded"><i class="fa-solid fa-envelope"></i> ${user.email}</span>`;
+                        }
+                        if (!user.discord_id && !user.email) {
+                            authBadges += `<span class="text-gray-500 text-xs italic">Legacy (Старый ID)</span>`;
+                        }
 
                         // Кнопка просмотра медиатеки доступна для всех
-                        const mediaBtn = `<button onclick="viewUserMedia('${user.id}', '${user.username}')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-medium py-1.5 px-3 rounded-xl transition-all cursor-pointer mr-2"><i class="fa-solid fa-images mr-1"></i> Медиатека</button>`;
+                        let mediaBtn = `<button onclick="viewUserMedia('${user.id}', '${user.username}')" class="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-medium py-1.5 px-3 rounded-xl transition-all cursor-pointer mr-2" title="Медиатека"><i class="fa-solid fa-images"></i></button>`;
+                        
+                        // Кнопка смены пароля (показываем только если есть почта)
+                        let passwordBtn = user.email ? `<button onclick="changeUserPassword('${user.id}', '${user.username}')" class="bg-blue-950/40 hover:bg-blue-900/40 border border-blue-950 text-blue-400 text-xs font-medium py-1.5 px-3 rounded-xl transition-all cursor-pointer mr-2" title="Изменить пароль"><i class="fa-solid fa-key"></i></button>` : '';
 
                         if (user.is_blocked) {
                             rowBgClass = 'bg-red-950/10 hover:bg-red-950/15 transition-colors';
                             statusBadge = `<span class="bg-red-500/10 text-red-400 border border-red-900/30 text-[11px] px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-ban text-[10px] mr-1"></i> Заблокирован</span>`;
-                            actionButtons = mediaBtn + `
+                            actionButtons = mediaBtn + passwordBtn + `
                                 <button onclick="unblockUser('${user.id}')" class="bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-900 text-emerald-400 text-xs font-medium py-1.5 px-4 rounded-xl transition-all cursor-pointer">
-                                    Разблокировать
+                                    Разблок.
                                 </button>`;
                         } else if (user.is_admin) {
                             rowBgClass = 'bg-blue-950/5 hover:bg-blue-950/10 transition-colors';
-                            statusBadge = `<span class="bg-blue-500/10 text-blue-400 border border-blue-900/30 text-[11px] px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-crown text-[10px] mr-1"></i> Администратор</span>`;
-                            actionButtons = mediaBtn + `<span class="text-xs text-gray-500 font-medium italic mr-2">Вы</span>`;
+                            statusBadge = `<span class="bg-blue-500/10 text-blue-400 border border-blue-900/30 text-[11px] px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-crown text-[10px] mr-1"></i> Админ</span>`;
+                            actionButtons = mediaBtn + passwordBtn + `<span class="text-xs text-gray-500 font-medium italic mr-2">Вы</span>`;
                         } else {
-                            statusBadge = `<span class="bg-gray-800 text-gray-400 text-[11px] px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-user text-[10px] mr-1"></i> Пользователь</span>`;
-                            actionButtons = mediaBtn + `
+                            statusBadge = `<span class="bg-gray-800 text-gray-400 text-[11px] px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-user text-[10px] mr-1"></i> Юзер</span>`;
+                            actionButtons = mediaBtn + passwordBtn + `
                                 <button onclick="blockUser('${user.id}')" class="bg-red-950/40 hover:bg-red-900/40 border border-red-950 text-red-400 text-xs font-medium py-1.5 px-4 rounded-xl transition-all cursor-pointer">
-                                    Заблокировать
+                                    Бан
                                 </button>`;
                         }
 
                         tr.className = rowBgClass;
                         tr.innerHTML = `
-                            <td class="px-6 py-4 font-mono text-xs text-gray-400">${user.id}</td>
-                            <td class="px-6 py-4 font-semibold text-gray-200">${user.username}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-gray-200">${user.username}</div>
+                                <div class="font-mono text-[10px] text-gray-500 mt-0.5" title="Уникальный ID">${user.id}</div>
+                            </td>
+                            <td class="px-6 py-4">${authBadges}</td>
                             <td class="px-6 py-4">${statusBadge}</td>
-                            <td class="px-6 py-4 text-right flex items-center justify-end h-full mt-2">${actionButtons}</td>
+                            <td class="px-6 py-4 text-right flex items-center justify-end h-full gap-1 mt-2">${actionButtons}</td>
                         `;
                         tbody.appendChild(tr);
                     });
                 }
             } catch (err) { console.error(err); }
+        }
+
+        async function changeUserPassword(userId, username) {
+            const newPassword = prompt(`Введите новый пароль для пользователя ${username}:`);
+            if (!newPassword || newPassword.trim() === "") return;
+            
+            if (newPassword.length < 6) {
+                alert("Пароль должен содержать минимум 6 символов.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/admin/users/${userId}/password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: newPassword })
+                });
+
+                if (res.ok) {
+                    alert(`✅ Пароль для ${username} успешно изменен!`);
+                } else {
+                    const data = await res.json();
+                    alert("Ошибка: " + data.detail);
+                }
+            } catch (err) {
+                alert("Ошибка сети при смене пароля.");
+            }
         }
 
         // ОТКРЫТИЕ МОДАЛКИ С ФАЙЛАМИ ЮЗЕРА

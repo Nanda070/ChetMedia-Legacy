@@ -1,28 +1,45 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, File, UploadFile, BackgroundTasks
-from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 import httpx
 import os
 import jwt
 import shutil
 import uuid
+import asyncio
+import hashlib
+import smtplib
+import secrets
+from fastapi import FastAPI, Request, HTTPException, Depends, File, UploadFile, BackgroundTasks
+from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
-import asyncio
-
-import hashlib
-
 from contextlib import asynccontextmanager
-
-from pydantic import BaseModel
-
-# Импортируем SessionLocal и все модели
+from pydantic import BaseModel, Field, EmailStr
+from email.mime.text import MIMEText
+from passlib.context import CryptContext
+from pydantic import EmailStr
 from app.database import get_db, SessionLocal, User, Media, Album
 from app.video_processor import calculate_sha256, get_video_duration, process_and_compress_video
 
-# Модели для массовых действий
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class AdminChangePasswordRequest(BaseModel):
+    new_password: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str = Field(..., max_length=70)
+
+class VerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+class LoginEmailRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 class BulkDeleteRequest(BaseModel):
     ids: list[str]
 
@@ -162,6 +179,29 @@ async def check_admin_status(user_id: str) -> bool:
 def read_root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
 
+def send_verification_email(email: str, code: str):
+    """Фоновая отправка кода на почту"""
+    smtp_user = os.getenv("SMTP_USER") # Твоя почта (например: admin@chetmedia.com)
+    smtp_pass = os.getenv("SMTP_PASS") # Пароль приложения от почты
+    
+    if not smtp_user or not smtp_pass:
+        print(f"⚠️ [SMTP] Не настроен в .env! Код для {email}: {code}")
+        return
+        
+    try:
+        msg = MIMEText(f"Добро пожаловать в ChetMedia!\n\nВаш код подтверждения: {code}\nНикому не сообщайте этот код.", "plain", "utf-8")
+        msg["Subject"] = "Код подтверждения ChetMedia"
+        msg["From"] = smtp_user
+        msg["To"] = email
+        
+        # Если используешь не Яндекс, поменяй smtp.yandex.ru на свой
+        with smtplib.SMTP_SSL("smtp.yandex.ru", 465) as server:
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        print(f"📧 [SMTP] Письмо успешно отправлено на {email}")
+    except Exception as e:
+        print(f"❌ [SMTP] Ошибка отправки: {e}")
+
 def send_registration_log_bg(user_id: str, username: str):
     """Фоновый логгер новых регистраций в Discord"""
     bot_token = os.getenv("DISCORD_BOT_TOKEN")
@@ -209,7 +249,8 @@ async def admin_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
 
 @app.get("/auth/callback")
-async def callback(code: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def callback(request: Request, code: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. Получаем токен и данные от Discord (как и раньше)
     data = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
@@ -228,32 +269,75 @@ async def callback(code: str, background_tasks: BackgroundTasks, db: Session = D
         user_info = user_response.json()
 
     discord_id = user_info["id"]
-    db_user = db.query(User).filter(User.id == discord_id).first()
     
-    if db_user and getattr(db_user, "is_blocked", False):
-        raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован. Пошел нахуй")
+    # 2. Проверяем, авторизован ли юзер прямо сейчас (читаем куку)
+    token = request.cookies.get("chetmedia_session")
+    current_user = None
+    if token:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+            current_user = db.query(User).filter(User.id == payload.get("sub")).first()
+        except jwt.PyJWTError:
+            pass
+
+    # 3. Ищем, привязан ли этот Discord уже к какому-то аккаунту
+    db_user_discord = db.query(User).filter(User.discord_id == discord_id).first()
+
+    # --- СЦЕНАРИЙ А: ПРИВЯЗКА К ТЕКУЩЕМУ АККАУНТУ ---
+    if current_user:
+        if db_user_discord and db_user_discord.id != current_user.id:
+            raise HTTPException(status_code=400, detail="Этот Discord аккаунт уже привязан к другому профилю ChetMedia.")
         
-    is_user_admin = await check_admin_status(discord_id)
-    if not db_user:
-        db_user = User(id=discord_id, username=user_info["username"], is_admin=is_user_admin)
-        db.add(db_user)
-        background_tasks.add_task(send_registration_log_bg, discord_id, user_info["username"])
+        current_user.discord_id = discord_id
+        db.commit()
+        return RedirectResponse(url="/") # Просто возвращаем в личный кабинет
+
+    # --- СЦЕНАРИЙ Б: ОБЫЧНЫЙ ВХОД / РЕГИСТРАЦИЯ ЧЕРЕЗ DISCORD ---
+    if db_user_discord:
+        if getattr(db_user_discord, "is_blocked", False):
+            raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован.")
+        db_user_discord.is_admin = await check_admin_status(discord_id)
+        db_user_discord.username = user_info["username"]
+        db_user = db_user_discord
     else:
-        db_user.is_admin = is_user_admin
-        
+        # Новый юзер только с Дискордом
+        db_user = User(
+            id=discord_id, 
+            discord_id=discord_id,
+            username=user_info["username"], 
+            is_admin=await check_admin_status(discord_id)
+        )
+        db.add(db_user)
+        background_tasks.add_task(send_registration_log_bg, discord_id, f"{user_info['username']} (Discord)")
+
     db.commit()
-    jwt_token = create_jwt_token({"sub": discord_id, "username": user_info["username"]})
+    
+    # Выдаем сессию
+    jwt_token = create_jwt_token({"sub": db_user.id, "username": db_user.username})
     response = RedirectResponse(url="/")
     response.set_cookie(key="chetmedia_session", value=jwt_token, httponly=True, max_age=7*24*60*60, samesite="lax")
     return response
+
+# --- НОВЫЙ ЭНДПОИНТ: ОТВЯЗКА DISCORD ---
+@app.post("/api/users/me/unlink-discord")
+def unlink_discord(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.email:
+        raise HTTPException(status_code=400, detail="Вы не можете отвязать Discord, так как у вас не привязана почта. Вы потеряете доступ к аккаунту!")
+    
+    current_user.discord_id = None
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/users/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     return {
         "message": "Ты в системе!", 
-        "discord_id": current_user.id, 
+        "id": current_user.id,
+        "discord_id": getattr(current_user, "discord_id", None), # Правильно отдаем discord_id
+        "email": getattr(current_user, "email", None),           # Правильно отдаем email
         "username": current_user.username,
-        "is_admin": current_user.is_admin
+        "is_admin": current_user.is_admin,
+        "is_verified": getattr(current_user, "is_verified", False)
     }
 
 def send_discord_dm(user_id: str, message_content: str):
@@ -411,6 +495,76 @@ async def upload_media(
     db.commit()
     return {"status": "success", "file_id": file_id, "url": f"{BASE_URL}/v/{file_id}"}
 
+@app.post("/auth/register")
+def register_user(req: RegisterRequest, bg_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. Проверяем, не занята ли почта
+    existing_user = db.query(User).filter(User.email == req.email).first()
+    if existing_user:
+        if existing_user.is_verified:
+            raise HTTPException(status_code=400, detail="Эта почта уже зарегистрирована")
+        else:
+            user = existing_user # Перезаписываем данные, если он не подтвердил почту ранее
+    else:
+        user_id = uuid.uuid4().hex[:12] # Генерируем уникальный ID вместо Дискордовского
+        user = User(id=user_id, email=req.email, is_verified=False)
+        db.add(user)
+    
+    # 2. Хэшируем пароль и генерируем код
+    user.username = req.username
+    user.password_hash = pwd_context.hash(req.password)
+    code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    user.verify_code = code
+    
+    db.commit()
+    
+    # 3. Отправляем письмо в фоне
+    bg_tasks.add_task(send_verification_email, req.email, code)
+    return {"status": "success", "message": "Код отправлен на почту"}
+
+@app.post("/auth/verify")
+def verify_email(req: VerifyRequest, bg_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    # Проверяем код
+    if getattr(user, "verify_code", None) != req.code:
+        raise HTTPException(status_code=400, detail="Неверный код подтверждения")
+        
+    # Активируем аккаунт
+    user.is_verified = True
+    user.verify_code = None
+    db.commit()
+    
+    # Лог в Дискорд (как ты и просил)
+    bg_tasks.add_task(send_registration_log_bg, user.id, f"{user.username} (Почта)")
+    
+    # Авторизуем юзера (выдаем JWT токен)
+    jwt_token = create_jwt_token({"sub": user.id, "username": user.username})
+    response = JSONResponse(content={"status": "success"})
+    response.set_cookie(key="chetmedia_session", value=jwt_token, httponly=True, max_age=7*24*60*60, samesite="lax")
+    return response
+
+@app.post("/auth/login_email")
+def login_email(req: LoginEmailRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    
+    # Сверяем пароль с хэшем в базе
+    if not user or not user.password_hash or not pwd_context.verify(req.password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Неверный email или пароль")
+        
+    if not user.is_verified:
+        raise HTTPException(status_code=400, detail="Почта не подтверждена. Пройдите регистрацию заново.")
+        
+    if getattr(user, "is_blocked", False):
+        raise HTTPException(status_code=403, detail="Ваш аккаунт заблокирован.")
+
+    # Выдаем токен
+    jwt_token = create_jwt_token({"sub": user.id, "username": user.username})
+    response = JSONResponse(content={"status": "success"})
+    response.set_cookie(key="chetmedia_session", value=jwt_token, httponly=True, max_age=7*24*60*60, samesite="lax")
+    return response
+
 @app.post("/upload/album")
 async def upload_album(
     files: list[UploadFile] = File(...),
@@ -534,6 +688,11 @@ def get_my_media(current_user: User = Depends(get_current_user), db: Session = D
 # =========================================================================
 # АДМИНИСТРАТИВНЫЕ МАРШРУТЫ УПРАВЛЕНИЯ (БАН / РАЗБАН / МОДЕРАЦИЯ МЕДИАТЕКИ)
 # =========================================================================
+# --- ДОБАВЬ ЭТУ МОДЕЛЬ ГДЕ-НИБУДЬ НАВЕРХУ РЯДОМ С ДРУГИМИ ---
+class AdminChangePasswordRequest(BaseModel):
+    new_password: str
+
+# --- ЗАМЕНИ СТАРЫЙ МАРШРУТ И ДОБАВЬ НОВЫЙ ---
 @app.get("/api/admin/users")
 async def get_all_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not current_user.is_admin:
@@ -542,10 +701,28 @@ async def get_all_users(current_user: User = Depends(get_current_user), db: Sess
     result = []
     for u in users:
         result.append({
-            "id": u.id, "username": u.username, "is_admin": u.is_admin,
+            "id": u.id, 
+            "username": u.username, 
+            "email": u.email,               # Отдаем email
+            "discord_id": u.discord_id,     # Отдаем discord_id
+            "is_admin": u.is_admin,
             "is_blocked": getattr(u, "is_blocked", False)
         })
     return {"users": result}
+
+@app.post("/api/admin/users/{target_id}/password")
+def admin_change_password(target_id: str, payload: AdminChangePasswordRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Принудительная смена пароля администратором"""
+    if not current_user.is_admin: 
+        raise HTTPException(status_code=403, detail="Нет прав")
+    
+    target_user = db.query(User).filter(User.id == target_id).first()
+    if not target_user: 
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+    target_user.password_hash = pwd_context.hash(payload.new_password)
+    db.commit()
+    return {"status": "success"}
 
 @app.post("/api/admin/users/{target_id}/block")
 async def block_user(target_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
