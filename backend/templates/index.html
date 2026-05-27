@@ -371,8 +371,56 @@
             }
         }
 
+        async function linkEmailFlow() {
+            const email = prompt("Введите вашу почту, которую хотите привязать:");
+            if (!email || email.trim() === "") return;
+
+            try {
+                // 1. Запрашиваем код
+                const reqRes = await fetch('/api/users/me/link-email/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email.trim() })
+                });
+
+                if (!reqRes.ok) {
+                    const data = await reqRes.json();
+                    alert(data.detail || "Ошибка при отправке кода.");
+                    return;
+                }
+
+                // 2. Вводим код
+                const code = prompt(`Мы отправили 6-значный код на почту ${email}.\nПожалуйста, введите его ниже:`);
+                if (!code || code.trim() === "") return;
+
+                // 3. Создаем пароль
+                const password = prompt("Придумайте пароль для входа в аккаунт через почту (минимум 6 символов):");
+                if (!password || password.length < 6) {
+                    alert("Пароль слишком короткий или не введен!");
+                    return;
+                }
+
+                // 4. Подтверждаем привязку
+                const verRes = await fetch('/api/users/me/link-email/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email.trim(), code: code.trim(), password: password })
+                });
+
+                if (verRes.ok) {
+                    alert("✅ Почта успешно привязана к вашему аккаунту!");
+                    window.location.reload();
+                } else {
+                    const data = await verRes.json();
+                    alert(data.detail || "Неверный код или ошибка привязки.");
+                }
+            } catch (err) {
+                alert("Ошибка сети.");
+            }
+        }
+
         // --- ЛОГИКА ОКНА ПРОФИЛЯ ---
-function openProfileModal() {
+        function openProfileModal() {
             if (!currentUserData) return;
             
             document.getElementById('profileUsername').innerText = currentUserData.username;

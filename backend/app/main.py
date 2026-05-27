@@ -43,6 +43,14 @@ class LoginEmailRequest(BaseModel):
 class BulkDeleteRequest(BaseModel):
     ids: list[str]
 
+class LinkEmailRequest(BaseModel):
+    email: str
+
+class VerifyLinkEmailRequest(BaseModel):
+    email: str
+    code: str
+    password: str
+
 class BulkAlbumRequest(BaseModel):
     media_ids: list[str]
     name: str
@@ -340,6 +348,51 @@ def read_users_me(current_user: User = Depends(get_current_user)):
         "is_admin": current_user.is_admin,
         "is_verified": getattr(current_user, "is_verified", False)
     }
+
+# --- ДОБАВЬ К ОСТАЛЬНЫМ МОДЕЛЯМ (Pydantic) ---
+class LinkEmailRequest(BaseModel):
+    email: str
+
+class VerifyLinkEmailRequest(BaseModel):
+    email: str
+    code: str
+    password: str
+
+# --- ДОБАВЬ НОВЫЕ МАРШРУТЫ ---
+@app.post("/api/users/me/link-email/request")
+async def request_link_email(payload: LinkEmailRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.email:
+        raise HTTPException(status_code=400, detail="К вашему аккаунту уже привязана почта.")
+    
+    # Проверяем, не занята ли почта другим юзером
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(status_code=400, detail="Эта почта уже занята другим аккаунтом.")
+    
+    # Генерируем и сохраняем код
+    import random
+    code = f"{random.randint(100000, 999999)}"
+    current_user.verify_code = code
+    db.commit()
+    
+    background_tasks.add_task(send_verification_email, payload.email, code)
+    return {"status": "success"}
+
+@app.post("/api/users/me/link-email/verify")
+def verify_link_email(payload: VerifyLinkEmailRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.verify_code or current_user.verify_code != payload.code:
+        raise HTTPException(status_code=400, detail="Неверный код подтверждения.")
+    
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Пароль должен быть минимум 6 символов.")
+        
+    # Успех! Сохраняем почту и хэш пароля
+    current_user.email = payload.email
+    current_user.password_hash = pwd_context.hash(payload.password)
+    current_user.is_verified = True
+    current_user.verify_code = None
+    db.commit()
+    
+    return {"status": "success"}
 
 def send_discord_dm(user_id: str, message_content: str):
     """Отправляет приватное сообщение (DM) пользователю в Discord от имени бота"""
